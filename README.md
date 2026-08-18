@@ -9,8 +9,8 @@
 - 의심 성분을 저장해두면 새 제품 등록 시 자동으로 경고
 - 의심 성분을 3일간 빼고 써보는 실험 추적 (전후 트러블 건수 비교)
 - 같은 날 같은 부위·시간대에 겹쳐 바른 성분 조합이 상성 경고 대상(AHA/BHA+레티놀 등)이면 기록 즉시 안내
-- 수면시간·생리주기 등 외부 요인 수동 기록
-- 기간 선택해서 트러블/도포 히스토리/의심 성분 요약 PDF 리포트 생성
+- 수면시간·생리주기 등 외부 요인 수동 기록, 미세먼지(PM2.5)는 에어코리아 API로 자동 조회
+- 기간 선택해서 트러블/도포 히스토리/의심 성분/외부 요인 요약 PDF 리포트 생성
 - 로그인/계정 없음 — 단일 사용자 기준(해커톤 스코프)
 
 ## ⚠️ 이 컴퓨터에서 꼭 알아야 할 것
@@ -50,6 +50,10 @@ pip install -r requirements.txt
 - `DATABASE_URL` — 비워두면 로컬 sqlite(`zone.db`) 사용. Supabase를 쓰려면
   Supabase 프로젝트의 **Settings → Database → Connection string (URI)** 값을 복사해서
   `postgres://` → `postgresql+psycopg2://` 로 스킴만 바꿔 넣으면 됩니다.
+- `AIRKOREA_API_KEY` — 미세먼지(PM2.5) 자동 조회에 사용. [공공데이터포털](https://www.data.go.kr)에서
+  "한국환경공단_에어코리아_대기오염정보" 활용신청(무료) 후 발급되는 **인코딩된 서비스키**를 그대로 붙여넣기
+  (URL 인코딩된 형태 그대로 써야 함, 다시 인코딩하면 안 됨)
+- `AIRKOREA_STATION` — 기준 측정소명, 비워두면 "종로구"(서울)
 
 ## 구조
 
@@ -64,11 +68,12 @@ frontend/
 backend/
   main.py            FastAPI 앱, 페이지 라우트(/), frontend/ 정적 서빙, /api/analysis
   database.py        SQLAlchemy 엔진 (DATABASE_URL 없으면 sqlite 폴백)
-  models.py          Product / DailyLog / TroubleDot / SuspectIngredient / Experiment
+  models.py          Product / DailyLog / TroubleDot / SuspectIngredient / Experiment / ExternalFactor
   schemas.py         Pydantic 요청/응답 모델
   analysis.py         트러블-성분 대조 분석 로직
   experiments.py       3일 실험 로직 (잠금 판정, 전후 비교 계산)
   interactions.py       성분 조합 상성 정적 테이블
+  airkorea.py            에어코리아 미세먼지(PM2.5) API 연동
   reports.py             PDF 리포트 생성 (reportlab)
   fonts/NanumSquareR.ttf  PDF용 한글 폰트 (SIL OFL)
   routers/
@@ -76,7 +81,7 @@ backend/
     logs.py            /api/day/{date}, /api/log/toggle, /api/dots 등
     suspects.py         /api/suspects (CRUD)
     experiments.py       /api/experiments (시작/조회/결과/중단)
-    external_factors.py   /api/external-factors (수면/생리주기/메모)
+    external_factors.py   /api/external-factors (수면/생리주기/메모/미세먼지 동기화)
     reports.py             /api/reports/pdf
 
 ai/
@@ -96,6 +101,7 @@ render.yaml           Render 배포 설정 (Blueprint)
    - `DATABASE_URL` — **꼭 채울 것.** 비워두면 sqlite로 동작하는데, Render 무료 플랜은 디스크가
      휘발성이라 재배포/재시작마다 데이터가 사라짐. Supabase 프로젝트 만들고 **Settings → Database →
      Connection string (URI)** 값을 복사해서 `postgres://` → `postgresql+psycopg2://`로 스킴만 바꿔 넣기.
+   - `AIRKOREA_API_KEY` — 없으면 미세먼지 동기화(`/api/external-factors/{date}/sync-pm25`)만 안 될 뿐 나머지는 정상 동작
 4. 배포되면 `https://<서비스명>.onrender.com`으로 접속 가능. `/health`가 헬스체크 엔드포인트.
 
 무료 플랜은 idle 후 첫 요청이 느림(수십 초 콜드 스타트) — 데모 직전에 한 번 미리 요청 보내서 깨워두기.

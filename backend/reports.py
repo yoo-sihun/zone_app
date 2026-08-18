@@ -10,7 +10,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
-from .models import DailyLog, TroubleDot, Product, SuspectIngredient, ZONE_LABELS, TROUBLE_TYPE_LABELS
+from .models import DailyLog, TroubleDot, Product, SuspectIngredient, ExternalFactor, ZONE_LABELS, TROUBLE_TYPE_LABELS
 
 FONT_NAME = "NanumSquare"
 FONT_PATH = os.path.join(os.path.dirname(__file__), "fonts", "NanumSquareR.ttf")
@@ -102,6 +102,31 @@ def generate_report_pdf(db: Session, start: Date, end: Date) -> bytes:
         story.append(Paragraph(", ".join(s.ingredient for s in suspects), body_style))
     else:
         story.append(Paragraph("저장된 의심 성분이 없습니다.", body_style))
+    story.append(Spacer(1, 18))
+
+    factors = (
+        db.query(ExternalFactor)
+        .filter(ExternalFactor.date >= start, ExternalFactor.date <= end)
+        .order_by(ExternalFactor.date)
+        .all()
+    )
+    story.append(Paragraph("외부 요인 기록", h2_style))
+    story.append(Spacer(1, 6))
+    if factors:
+        rows = [["날짜", "수면시간", "생리주기", "미세먼지(PM2.5)", "메모"]]
+        for f in factors:
+            rows.append(
+                [
+                    f.date.isoformat(),
+                    f"{f.sleep_hours}h" if f.sleep_hours is not None else "-",
+                    f.menstrual_phase or "-",
+                    f"{f.pm25}" if f.pm25 is not None else "-",
+                    f.memo or "-",
+                ]
+            )
+        story.append(_table(rows))
+    else:
+        story.append(Paragraph("해당 기간 기록된 외부 요인이 없습니다.", body_style))
     story.append(Spacer(1, 24))
 
     story.append(

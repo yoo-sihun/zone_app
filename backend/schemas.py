@@ -108,6 +108,7 @@ class ExternalFactorOut(BaseModel):
     sleep_hours: float | None
     menstrual_phase: str | None
     memo: str | None
+    pm25: float | None = None
 
     class Config:
         from_attributes = True

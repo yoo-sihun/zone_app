@@ -79,8 +79,8 @@ class Experiment(Base):
 
 
 class ExternalFactor(Base):
-    """Manually-entered per-day context (sleep, menstrual phase, free-text memo).
-    One row per date; POST upserts."""
+    """Per-day context: sleep/menstrual phase/memo are manually entered (POST upserts),
+    pm25 is fetched on demand from AirKorea (POST /api/external-factors/{date}/sync-pm25)."""
     __tablename__ = "external_factors"
 
     id = Column(Integer, primary_key=True)
@@ -88,3 +88,4 @@ class ExternalFactor(Base):
     sleep_hours = Column(Float, nullable=True)
     menstrual_phase = Column(String, nullable=True)
     memo = Column(String, nullable=True)
+    pm25 = Column(Float, nullable=True)

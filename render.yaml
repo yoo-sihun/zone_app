@@ -13,3 +13,7 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: AIRKOREA_API_KEY
+        sync: false
+      - key: AIRKOREA_STATION
+        value: 종로구
