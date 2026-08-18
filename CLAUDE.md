@@ -24,7 +24,7 @@
   2. 각 트러블 발생일마다 해당 부위에 `LAG_DAYS`(기본 3일) 이내 발린 제품들의 성분을 집계(`hits`)
   3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
-- 아직 없는 것: 성분 조합 상성 체크, 외부 환경 변수(미세먼지 등) — 전부 §5 "향후 아이디어" 참고.
+- 아직 없는 것: 외부 환경 변수(미세먼지 등) — §5 "향후 아이디어" 참고.
 
 **AM/PM 구분 + 트러블 유형**은 구현됨:
 - `daily_logs.time_slot`(`am`/`pm`)로 도포 시간대 구분. `analyze()`의 `suspects`에 `time_slots` 필드가 붙어서, 어떤 성분이 아침에만/저녁에만/둘 다 발렸는지 알 수 있음 (매칭 로직 자체는 시간대로 거르지 않고, 정보만 부가).
@@ -35,6 +35,11 @@
 - `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
 - **프론트는 아직 이 API들을 안 씀** — 프론트 담당이 피그마 디자인 완성 후 연동 예정. 지금은 백엔드 로직/스키마만 있고 UI 연결 없음.
+
+**성분 조합 상성 경고** ([backend/interactions.py](backend/interactions.py))도 구현됨:
+- DB 테이블이 아니라 코드에 하드코딩된 정적 리스트(`INGREDIENT_INTERACTIONS`) — 관리자가 수시로 바꿀 데이터가 아니라서 굳이 테이블로 뺄 필요 없다고 판단함. 조합 늘리려면 이 파일에 딕셔너리만 추가하면 됨.
+- `POST /api/log/toggle`로 제품을 추가하는 순간, **같은 날짜+부위+시간대**에 이미 발린 다른 제품들과의 성분 조합을 체크해서 응답의 `warnings`에 담아 반환 (매칭되는 게 없으면 빈 배열)
+- 시간대(`time_slot`)까지 일치해야 체크 대상이 됨 — 아침에 바른 성분과 저녁에 바른 성분은 실제로 섞인 적이 없으므로 상성 경고 대상에서 제외
 
 ---
 
@@ -73,7 +78,7 @@ DELETE /api/products/{id}
 POST   /api/products/ocr        (multipart image) → {name, ingredients}
 
 GET    /api/day/{date}          → {date, log: {zone: {am:[product_id], pm:[product_id]}}, dots: [{id,zone,type,x,y}]}
-POST   /api/log/toggle          {date, zone, time_slot, product_id}  -- 있으면 삭제, 없으면 추가. 실험 중인 성분이 든 제품을 새로 추가하려 하면 400
+POST   /api/log/toggle          {date, zone, time_slot, product_id} → {applied, warnings}  -- 있으면 삭제(warnings 없음), 없으면 추가하고 같은 날짜/부위/시간대 성분 조합 상성 경고 반환. 실험 중인 성분이 든 제품을 새로 추가하려 하면 400
 POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사 (time_slot 포함)
 DELETE /api/log/{date}
 
@@ -110,9 +115,10 @@ backend/
   schemas.py         Pydantic 요청/응답 모델
   analysis.py         트러블-성분 대조 분석 (LAG_DAYS=3)
   experiments.py       3일 실험 관련 로직 (잠금 판정, 결과 계산) — analysis.py와 별개 모듈
+  interactions.py       성분 조합 상성 정적 테이블 + 체크 함수
   routers/
     products.py       /api/products/*  (ai.ocr, experiments.locked_ingredient을 import)
-    logs.py            /api/day, /api/log/*, /api/dots/*  (experiments.locked_ingredient으로 잠금 체크)
+    logs.py            /api/day, /api/log/*, /api/dots/*  (experiments.locked_ingredient, interactions.check_interactions 사용)
     suspects.py         /api/suspects/*
     experiments.py       /api/experiments/*
 
@@ -143,7 +149,6 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 | 항목 | 메모 |
 |---|---|
 | 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안 |
-| 성분 조합 상성 경고 (AHA/BHA+레티놀 등) | 정적 룩업 테이블 필요, 로직 자체는 단순 |
 | 외부 환경 변수(미세먼지/자외선/수면) 연동 | 에어코리아 공공 API, 대부분은 수동 입력이 현실적 |
 | PDF 리포트 내보내기 | `weasyprint`/`reportlab` 등으로 서버사이드 생성 |
 | 다중 사용자 + 로그인 재도입 | 여러 사람이 각자 계정으로 쓰게 하려면 `users` 테이블과 인증을 다시 설계해서 넣어야 함 (§4 참고) |

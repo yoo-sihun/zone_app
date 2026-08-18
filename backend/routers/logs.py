@@ -7,6 +7,7 @@ from ..database import get_db
 from ..models import DailyLog, TroubleDot, Product, ZONES, TIME_SLOTS, TROUBLE_TYPES
 from ..schemas import LogToggleIn, DotIn, DaySnapshot
 from ..experiments import locked_ingredient
+from ..interactions import check_interactions
 
 router = APIRouter(prefix="/api", tags=["logs"])
 
@@ -56,7 +57,26 @@ def toggle_log(data: LogToggleIn, db: Session = Depends(get_db)):
     entry = DailyLog(date=data.date, zone=data.zone, time_slot=data.time_slot, product_id=data.product_id)
     db.add(entry)
     db.commit()
-    return {"applied": True}
+
+    same_slot_entries = (
+        db.query(DailyLog)
+        .filter(
+            DailyLog.date == data.date,
+            DailyLog.zone == data.zone,
+            DailyLog.time_slot == data.time_slot,
+        )
+        .all()
+    )
+    products = (
+        db.query(Product)
+        .filter(Product.id.in_([e.product_id for e in same_slot_entries]))
+        .all()
+    )
+    ingredient_set: set[str] = set()
+    for p in products:
+        ingredient_set.update(p.ingredients)
+
+    return {"applied": True, "warnings": check_interactions(ingredient_set)}
 
 
 @router.post("/log/copy-previous")
