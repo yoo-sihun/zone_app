@@ -6,6 +6,7 @@
 - 트러블이 난 위치를 얼굴 위에 직접 표시
 - 트러블 난 부위 vs 안 난 부위(대조군)에 최근 며칠간 발린 성분을 비교해서 의심 성분을 추려줌
 - 제품 등록 시 성분표 사진을 찍으면 OpenAI Vision으로 자동 인식(OCR)
+- 로그인/계정 없음 — 단일 사용자 기준(해커톤 스코프)
 
 ## ⚠️ 이 컴퓨터에서 꼭 알아야 할 것
 
@@ -23,10 +24,10 @@ C:\Users\ajtwl\AppData\Local\Programs\Python\Python312\python.exe
 ```powershell
 cd C:\Users\ajtwl\zone-app
 .\.venv\Scripts\Activate.ps1
-python -m uvicorn app.main:app --reload
+python -m uvicorn backend.main:app --reload
 ```
 
-브라우저에서 http://127.0.0.1:8000 접속 → 회원가입 → 시작.
+브라우저에서 http://127.0.0.1:8000 접속.
 
 venv가 없다면 새로 생성:
 
@@ -41,28 +42,34 @@ pip install -r requirements.txt
 `.env.example`을 복사해서 `.env`로 만들고 값을 채우세요.
 
 - `OPENAI_API_KEY` — 성분표 OCR에 사용 (gpt-4o-mini vision)
-- `SESSION_SECRET` — 로그인 세션 쿠키 서명용, 아무 랜덤 문자열
 - `DATABASE_URL` — 비워두면 로컬 sqlite(`zone.db`) 사용. Supabase를 쓰려면
   Supabase 프로젝트의 **Settings → Database → Connection string (URI)** 값을 복사해서
   `postgres://` → `postgresql+psycopg2://` 로 스킴만 바꿔 넣으면 됩니다.
 
 ## 구조
 
+팀 분업(프론트/백엔드/AI) 기준으로 폴더를 나눴습니다. 배포는 여전히 FastAPI 하나가
+프론트 파일까지 서빙하는 단일 서비스(Render)입니다 — 폴더만 분리했을 뿐 별도 서버는 아닙니다.
+
 ```
-app/
-  main.py            FastAPI 앱, 페이지 라우트(/, /login), 세션 미들웨어
+frontend/
+  templates/          login 없이 index.html (Jinja2) 하나
+  static/             css/js (바닐라 JS)
+
+backend/
+  main.py            FastAPI 앱, 페이지 라우트(/), frontend/ 정적 서빙, /api/analysis
   database.py        SQLAlchemy 엔진 (DATABASE_URL 없으면 sqlite 폴백)
-  models.py          User / Product / DailyLog / TroubleDot
+  models.py          Product / DailyLog / TroubleDot (사용자 구분 없음)
   schemas.py         Pydantic 요청/응답 모델
-  auth.py            비밀번호 해싱(pbkdf2_sha256) + 세션 기반 로그인
-  analysis.py        트러블-성분 대조 분석 로직 (원래 프로토타입 JS 로직을 서버로 이식)
-  ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
+  analysis.py         트러블-성분 대조 분석 로직
   routers/
-    auth.py          /api/auth/register, /login, /logout, /me
     products.py       /api/products (CRUD), /api/products/ocr
     logs.py            /api/day/{date}, /api/log/toggle, /api/dots 등
-  templates/          login.html, index.html (Jinja2)
-  static/             css/js (바닐라 JS, 원래 프로토타입 UI 그대로 이식)
+
+ai/
+  ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
+
+render.yaml           Render 배포 설정 (Blueprint)
 ```
 
 ## 배포 (Render)
@@ -76,13 +83,12 @@ app/
    - `DATABASE_URL` — **꼭 채울 것.** 비워두면 sqlite로 동작하는데, Render 무료 플랜은 디스크가
      휘발성이라 재배포/재시작마다 데이터가 사라짐. Supabase 프로젝트 만들고 **Settings → Database →
      Connection string (URI)** 값을 복사해서 `postgres://` → `postgresql+psycopg2://`로 스킴만 바꿔 넣기.
-   - `SESSION_SECRET`은 Render가 자동 생성(render.yaml의 `generateValue`)
 4. 배포되면 `https://<서비스명>.onrender.com`으로 접속 가능. `/health`가 헬스체크 엔드포인트.
 
 무료 플랜은 idle 후 첫 요청이 느림(수십 초 콜드 스타트) — 데모 직전에 한 번 미리 요청 보내서 깨워두기.
 
 ## 참고
 
-- 인증은 이메일/비밀번호 + 세션 쿠키로 최소 구현 (이메일 인증·비밀번호 재설정 없음)
+- 로그인/회원가입 없음 — 모든 데이터는 사용자 구분 없이 전역으로 저장됨(해커톤 데모용, 단일 사용자 전제)
 - 성분표 사진은 저장하지 않고 OpenAI에 전달해 텍스트만 추출한 뒤 버림 (Storage 불필요)
-- 분석 로직의 `LAG_DAYS`(기본 3일)는 `app/analysis.py`에서 조정 가능
+- 분석 로직의 `LAG_DAYS`(기본 3일)는 `backend/analysis.py`에서 조정 가능

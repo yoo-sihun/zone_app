@@ -22,7 +22,6 @@ async function api(path, opts = {}){
     headers: opts.body && !(opts.body instanceof FormData) ? {'Content-Type': 'application/json'} : undefined,
     ...opts,
   });
-  if(res.status === 401){ location.href = '/login'; throw new Error('unauthorized'); }
   if(!res.ok){
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || `요청 실패 (${res.status})`);
@@ -275,12 +274,6 @@ $('#analyze').onclick = async () => {
 };
 function closeM(){ $('#modal').classList.remove('show'); }
 $('#modal').onclick = e => { if(e.target.id === 'modal') closeM(); };
-
-// ── 로그아웃 ──
-$('#logout').onclick = async () => {
-  await api('/api/auth/logout', { method: 'POST' });
-  location.href = '/login';
-};
 
 (async function init(){
   dlabel();

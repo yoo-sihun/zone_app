@@ -9,19 +9,6 @@ body{
 header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
 .logo{font-size:19px;font-weight:700;letter-spacing:.22em}
 .tag{font-size:11px;color:#6E6E73;letter-spacing:.04em}
-.logoutlink{background:none;border:0;color:#6E6E73;font-size:11px;cursor:pointer;font-family:inherit}
-
-/* 로그인 */
-.authwrap{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%}
-.authcard{width:100%;max-width:340px;padding:0 20px}
-.authcard h1{font-size:20px;letter-spacing:.2em;margin-bottom:28px;text-align:center}
-.authcard input{width:100%;padding:13px 14px;margin-bottom:10px;background:#141416;border:1.5px solid #232327;
-  border-radius:11px;color:#F2F2F0;font-size:14px;font-family:inherit}
-.authcard input:focus{outline:none;border-color:#C8A24B}
-.authcard .btn{width:100%;margin-top:6px}
-.authcard .switch{text-align:center;margin-top:16px;font-size:12px;color:#6E6E73}
-.authcard .switch a{color:#C8A24B;cursor:pointer;text-decoration:none}
-.autherr{color:#E14B48;font-size:12px;text-align:center;min-height:16px;margin-top:4px}
 
 /* 날짜 */
 .datebar{display:flex;align-items:center;justify-content:space-between;
