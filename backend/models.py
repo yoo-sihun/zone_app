@@ -11,6 +11,16 @@ ZONE_LABELS = {
     "chin": "턱·입주변",
 }
 
+TIME_SLOTS = ["am", "pm"]
+
+TROUBLE_TYPES = ["comedonal", "papule", "pustule", "redness"]
+TROUBLE_TYPE_LABELS = {
+    "comedonal": "면포성",
+    "papule": "붉은 구진",
+    "pustule": "화농성",
+    "redness": "붉은기",
+}
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -21,24 +31,28 @@ class Product(Base):
 
 
 class DailyLog(Base):
-    """A product applied to a face zone on a given date."""
+    """A product applied to a face zone on a given date, in the AM or PM."""
     __tablename__ = "daily_logs"
 
     id = Column(Integer, primary_key=True)
     date = Column(Date, nullable=False, index=True)
     zone = Column(String, nullable=False)
+    time_slot = Column(String, nullable=False)  # am | pm
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
 
-    __table_args__ = (UniqueConstraint("date", "zone", "product_id", name="uq_log_entry"),)
+    __table_args__ = (
+        UniqueConstraint("date", "zone", "product_id", "time_slot", name="uq_log_entry"),
+    )
 
 
 class TroubleDot(Base):
-    """A marked breakout location on a given date."""
+    """A marked breakout location on a given date, with a lesion type."""
     __tablename__ = "trouble_dots"
 
     id = Column(Integer, primary_key=True)
     date = Column(Date, nullable=False, index=True)
     zone = Column(String, nullable=False)
+    type = Column(String, nullable=False)  # comedonal | papule | pustule | redness
     x = Column(Float, nullable=False)
     y = Column(Float, nullable=False)
 

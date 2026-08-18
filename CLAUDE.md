@@ -24,7 +24,11 @@
   2. 각 트러블 발생일마다 해당 부위에 `LAG_DAYS`(기본 3일) 이내 발린 제품들의 성분을 집계(`hits`)
   3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
-- 아직 없는 것: AM/PM 구분, 트러블 유형(화농성/붉은기 등) 구분, 성분 조합 상성 체크, 외부 환경 변수(미세먼지 등) — 전부 §5 "향후 아이디어" 참고.
+- 아직 없는 것: 성분 조합 상성 체크, 외부 환경 변수(미세먼지 등) — 전부 §5 "향후 아이디어" 참고.
+
+**AM/PM 구분 + 트러블 유형**은 구현됨:
+- `daily_logs.time_slot`(`am`/`pm`)로 도포 시간대 구분. `analyze()`의 `suspects`에 `time_slots` 필드가 붙어서, 어떤 성분이 아침에만/저녁에만/둘 다 발렸는지 알 수 있음 (매칭 로직 자체는 시간대로 거르지 않고, 정보만 부가).
+- `trouble_dots.type`(`comedonal`/`papule`/`pustule`/`redness`)로 트러블 유형 구분. `GET /api/analysis?type=pustule`처럼 쿼리 파라미터로 특정 유형만 필터링해서 분석 가능(생략하면 전체).
 
 **의심 성분 저장 + 3일 실험 추적** ([backend/experiments.py](backend/experiments.py))은 구현됨:
 - `POST /api/suspects {ingredient}`로 저장해두면, 이후 `POST /api/products`로 등록하는 제품에 그 성분이 있으면 응답의 `warnings`에 표시됨
@@ -41,12 +45,12 @@ products
   id, name,
   ingredients JSON  -- 문자열 리스트, 별도 ingredients 테이블 없음
 
-daily_logs             -- "이 날 이 부위에 이 제품을 발랐다"
-  id, date, zone, product_id
-  unique(date, zone, product_id)
+daily_logs             -- "이 날 이 부위/시간대에 이 제품을 발랐다"
+  id, date, zone, time_slot(am|pm), product_id
+  unique(date, zone, product_id, time_slot)
 
 trouble_dots            -- 트러블 위치 마킹
-  id, date, zone, x, y
+  id, date, zone, type(comedonal|papule|pustule|redness), x, y
 
 suspect_ingredients      -- 사용자가 저장해둔 의심 성분
   id, ingredient (unique), created_at
@@ -68,15 +72,15 @@ POST   /api/products            {name, ingredients: [str]} → {..., warnings: [
 DELETE /api/products/{id}
 POST   /api/products/ocr        (multipart image) → {name, ingredients}
 
-GET    /api/day/{date}          → {date, log: {zone: [product_id]}, dots}
-POST   /api/log/toggle          {date, zone, product_id}  -- 있으면 삭제, 없으면 추가. 실험 중인 성분이 든 제품을 새로 추가하려 하면 400
-POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사
+GET    /api/day/{date}          → {date, log: {zone: {am:[product_id], pm:[product_id]}}, dots: [{id,zone,type,x,y}]}
+POST   /api/log/toggle          {date, zone, time_slot, product_id}  -- 있으면 삭제, 없으면 추가. 실험 중인 성분이 든 제품을 새로 추가하려 하면 400
+POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사 (time_slot 포함)
 DELETE /api/log/{date}
 
-POST   /api/dots                {date, zone, x, y}
+POST   /api/dots                {date, zone, type, x, y}
 DELETE /api/dots/{id}
 
-GET    /api/analysis            → analyze() 결과
+GET    /api/analysis            → analyze() 결과. ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots 필드 포함
 
 GET    /api/suspects            → [{id, ingredient}]
 POST   /api/suspects            {ingredient} -- 이미 있으면 그냥 기존 것 반환(idempotent)
@@ -128,6 +132,7 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 - 성분표 사진은 저장하지 않고 OpenAI에 전달해 텍스트만 추출한 뒤 버림(Storage 불필요).
 - `analysis.py`의 `LAG_DAYS`(기본 3일)는 조정 가능한 상수. `experiments.py`의 `EXPERIMENT_DAYS`(기본 3일)는 별개 상수.
 - [frontend/static/js/app.js](frontend/static/js/app.js)의 분석 결과 모달에 아직 남아있는 "2주간 이 성분 빼고 써보시겠어요?" 문구는 이제 실제 백엔드(3일 실험, `/api/experiments`)와 안 맞음 — 프론트 연동할 때 "3일"로 고치거나 실제 API를 붙여야 함.
+- **스키마 바꿀 때 마이그레이션 도구가 없다는 것 주의.** `Base.metadata.create_all()`은 없는 테이블만 새로 만들고, 이미 존재하는 테이블에 컬럼을 추가하지 않음. `daily_logs.time_slot`/`trouble_dots.type` 추가할 때 로컬 sqlite는 파일 지우고 새로 만들면 되지만, Supabase처럼 실데이터 있는 DB는 `ALTER TABLE ... ADD COLUMN`을 직접 실행해줘야 함(엔진에 raw SQL로). Alembic 같은 마이그레이션 툴은 없음.
 
 ---
 
@@ -137,8 +142,6 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 
 | 항목 | 메모 |
 |---|---|
-| AM/PM 구분 도포 기록 | "레티놀은 밤에만" 같은 원인 판별에 유용. `daily_logs`에 `time_slot` 컬럼 추가 필요 |
-| 트러블 유형 세분화 (화농성/붉은기 등) | `trouble_dots`에 `type` 컬럼 추가, `analyze()`를 유형별로 분리 |
 | 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안 |
 | 성분 조합 상성 경고 (AHA/BHA+레티놀 등) | 정적 룩업 테이블 필요, 로직 자체는 단순 |
 | 외부 환경 변수(미세먼지/자외선/수면) 연동 | 에어코리아 공공 API, 대부분은 수동 입력이 현실적 |

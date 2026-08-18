@@ -8,8 +8,11 @@ from .models import DailyLog, TroubleDot, Product, ZONES
 LAG_DAYS = 3  # 트러블 발생일 기준 며칠 전까지의 사용 기록을 의심하는지
 
 
-def analyze(db: Session) -> dict:
-    dots = db.query(TroubleDot).all()
+def analyze(db: Session, dot_type: str | None = None) -> dict:
+    dots_query = db.query(TroubleDot)
+    if dot_type:
+        dots_query = dots_query.filter(TroubleDot.type == dot_type)
+    dots = dots_query.all()
     if not dots:
         return {"bad_zones": [], "good_zones": ZONES, "events": 0, "suspects": []}
 
@@ -18,8 +21,10 @@ def analyze(db: Session) -> dict:
 
     products = {p.id: p for p in db.query(Product).all()}
 
-    # ingredient -> {count, zones:set, product_ids:set}
-    hits: dict[str, dict] = defaultdict(lambda: {"count": 0, "zones": set(), "product_ids": set()})
+    # ingredient -> {count, zones:set, time_slots:set, product_ids:set}
+    hits: dict[str, dict] = defaultdict(
+        lambda: {"count": 0, "zones": set(), "time_slots": set(), "product_ids": set()}
+    )
 
     for dot in dots:
         window_start = dot.date - timedelta(days=LAG_DAYS)
@@ -40,6 +45,7 @@ def analyze(db: Session) -> dict:
                 h = hits[ing]
                 h["count"] += 1
                 h["zones"].add(dot.zone)
+                h["time_slots"].add(entry.time_slot)
                 h["product_ids"].add(product.id)
 
     # 안 난 부위(대조군)에서 쓰인 성분은 용의선상에서 제외
@@ -57,6 +63,7 @@ def analyze(db: Session) -> dict:
             "ingredient": ing,
             "count": v["count"],
             "zones": sorted(v["zones"]),
+            "time_slots": sorted(v["time_slots"]),
             "product_ids": sorted(v["product_ids"]),
         }
         for ing, v in hits.items()

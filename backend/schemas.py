@@ -32,26 +32,29 @@ class OcrResult(BaseModel):
 class LogToggleIn(BaseModel):
     date: Date
     zone: str
+    time_slot: str  # am | pm
     product_id: int
 
 
 class DotIn(BaseModel):
     date: Date
     zone: str
+    type: str  # comedonal | papule | pustule | redness
     x: float
     y: float
 
 
 class DaySnapshot(BaseModel):
     date: Date
-    log: dict[str, list[int]]  # zone -> [product_id...]
-    dots: list[dict]  # [{id, zone, x, y}]
+    log: dict[str, dict[str, list[int]]]  # zone -> time_slot -> [product_id...]
+    dots: list[dict]  # [{id, zone, type, x, y}]
 
 
 class Suspect(BaseModel):
     ingredient: str
     count: int
     zones: list[str]
+    time_slots: list[str]
     product_ids: list[int]
 
 
