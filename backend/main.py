@@ -12,6 +12,8 @@ from .routers import products as products_router
 from .routers import logs as logs_router
 from .routers import suspects as suspects_router
 from .routers import experiments as experiments_router
+from .routers import external_factors as external_factors_router
+from .routers import reports as reports_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
 from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES
 from .analysis import analyze
@@ -27,6 +29,8 @@ app.include_router(products_router.router)
 app.include_router(logs_router.router)
 app.include_router(suspects_router.router)
 app.include_router(experiments_router.router)
+app.include_router(external_factors_router.router)
+app.include_router(reports_router.router)
 
 
 @app.get("/")

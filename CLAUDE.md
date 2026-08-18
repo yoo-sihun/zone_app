@@ -24,7 +24,7 @@
   2. 각 트러블 발생일마다 해당 부위에 `LAG_DAYS`(기본 3일) 이내 발린 제품들의 성분을 집계(`hits`)
   3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
-- 아직 없는 것: 외부 환경 변수(미세먼지 등) — §5 "향후 아이디어" 참고.
+- 아직 없는 것: 미세먼지/자외선 자동 연동(공공 API 키 필요), 바코드 스캔 — §5 "향후 아이디어" 참고.
 
 **AM/PM 구분 + 트러블 유형**은 구현됨:
 - `daily_logs.time_slot`(`am`/`pm`)로 도포 시간대 구분. `analyze()`의 `suspects`에 `time_slots` 필드가 붙어서, 어떤 성분이 아침에만/저녁에만/둘 다 발렸는지 알 수 있음 (매칭 로직 자체는 시간대로 거르지 않고, 정보만 부가).
@@ -40,6 +40,11 @@
 - DB 테이블이 아니라 코드에 하드코딩된 정적 리스트(`INGREDIENT_INTERACTIONS`) — 관리자가 수시로 바꿀 데이터가 아니라서 굳이 테이블로 뺄 필요 없다고 판단함. 조합 늘리려면 이 파일에 딕셔너리만 추가하면 됨.
 - `POST /api/log/toggle`로 제품을 추가하는 순간, **같은 날짜+부위+시간대**에 이미 발린 다른 제품들과의 성분 조합을 체크해서 응답의 `warnings`에 담아 반환 (매칭되는 게 없으면 빈 배열)
 - 시간대(`time_slot`)까지 일치해야 체크 대상이 됨 — 아침에 바른 성분과 저녁에 바른 성분은 실제로 섞인 적이 없으므로 상성 경고 대상에서 제외
+
+**외부 변수 수동 입력 + PDF 리포트**도 구현됨:
+- `external_factors` 테이블(날짜당 1행): `POST /api/external-factors {date, sleep_hours?, menstrual_phase?, memo?}`로 upsert, `GET /api/external-factors/{date}`로 조회(없으면 null). 미세먼지/자외선처럼 공공 API 연동이 필요한 자동 수집 항목은 아직 없음(§5 참고) — 이건 수동 입력만.
+- `GET /api/reports/pdf?start=&end=`가 그 기간의 트러블 발생 현황(날짜·부위·유형 표) + 도포 제품 히스토리(날짜·시간대·부위·제품명 표) + 저장된 의심 성분 목록을 한 장짜리 PDF로 만들어 바로 다운로드(`StreamingResponse`, `application/pdf`)로 반환. 상태 폴링(pending/ready) 같은 거 없이 요청-응답 안에서 동기 생성 — 리포트 만드는 데이터양이 해커톤 스코프에서 그 정도로 크지 않다고 판단.
+- **한글 폰트 이슈 주의**: `reportlab`으로 한글을 그릴 때 `UnicodeCIDFont`(예: `HYGothic-Medium`)는 글리프를 PDF에 임베드하지 않고 뷰어가 시스템에 깔린 한글 폰트로 대체 렌더링하는 방식이라, 뷰어에 맞는 폰트가 없으면 빈 칸으로 나옴(실제로 이 문제를 겪고 확인함). 그래서 [backend/fonts/NanumSquareR.ttf](backend/fonts/NanumSquareR.ttf)(네이버 나눔스퀘어, SIL OFL 라이선스, 재배포 허용)를 리포에 직접 넣고 `TTFont`로 통째로 임베드하는 방식을 씀([backend/reports.py](backend/reports.py)) — 이러면 뷰어 환경과 무관하게 항상 제대로 보임. 폰트 파일을 지우거나 바꾸면 리포트가 다시 깨지니 주의.
 
 ---
 
@@ -95,6 +100,11 @@ GET    /api/experiments/active  → 진행 중인 실험 1건 또는 null
 POST   /api/experiments         {ingredient} → 실험 시작 (이미 active면 400)
 GET    /api/experiments/{id}/result → {..., before_count, during_count, improved}
 PATCH  /api/experiments/{id}    → 중단(status=stopped)
+
+POST   /api/external-factors    {date, sleep_hours?, menstrual_phase?, memo?} -- upsert
+GET    /api/external-factors/{date} → 값 또는 null
+
+GET    /api/reports/pdf?start=&end= → PDF 파일 스트리밍 다운로드 (기간 내 트러블/도포 히스토리/의심 성분 요약)
 ```
 
 인증 없음 — 모든 엔드포인트가 누구나 호출 가능. `/`가 유일한 페이지 라우트.
@@ -116,11 +126,16 @@ backend/
   analysis.py         트러블-성분 대조 분석 (LAG_DAYS=3)
   experiments.py       3일 실험 관련 로직 (잠금 판정, 결과 계산) — analysis.py와 별개 모듈
   interactions.py       성분 조합 상성 정적 테이블 + 체크 함수
+  reports.py             PDF 리포트 생성 (reportlab, 한글 폰트 임베드)
+  fonts/
+    NanumSquareR.ttf     PDF용 한글 폰트 (SIL OFL, reports.py가 TTFont로 임베드)
   routers/
     products.py       /api/products/*  (ai.ocr, experiments.locked_ingredient을 import)
     logs.py            /api/day, /api/log/*, /api/dots/*  (experiments.locked_ingredient, interactions.check_interactions 사용)
     suspects.py         /api/suspects/*
     experiments.py       /api/experiments/*
+    external_factors.py   /api/external-factors/*
+    reports.py             /api/reports/pdf
 
 ai/
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
@@ -148,8 +163,7 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 
 | 항목 | 메모 |
 |---|---|
-| 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안 |
-| 외부 환경 변수(미세먼지/자외선/수면) 연동 | 에어코리아 공공 API, 대부분은 수동 입력이 현실적 |
-| PDF 리포트 내보내기 | `weasyprint`/`reportlab` 등으로 서버사이드 생성 |
+| 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안이나, 실제로 "바코드→전성분" 매핑까지 제공하는지 확인 필요 |
+| 미세먼지/자외선 자동 연동 | 에어코리아 공공 API 키 발급 필요(사용자가 직접). `external_factors`에 pm25/uv_index 컬럼 추가하고 배치로 채우는 구조가 될 것 |
 | 다중 사용자 + 로그인 재도입 | 여러 사람이 각자 계정으로 쓰게 하려면 `users` 테이블과 인증을 다시 설계해서 넣어야 함 (§4 참고) |
 | 프론트를 Vercel로 분리 | 지금은 Render 단일 서비스. 분리 시 인증이 없으니 세션 쿠키 문제는 없지만, API 호출 주소/CORS는 새로 설정 필요 |

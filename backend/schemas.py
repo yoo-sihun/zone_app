@@ -94,3 +94,20 @@ class ExperimentResult(ExperimentOut):
     before_count: int
     during_count: int
     improved: bool
+
+
+class ExternalFactorIn(BaseModel):
+    date: Date
+    sleep_hours: float | None = None
+    menstrual_phase: str | None = None
+    memo: str | None = None
+
+
+class ExternalFactorOut(BaseModel):
+    date: Date
+    sleep_hours: float | None
+    menstrual_phase: str | None
+    memo: str | None
+
+    class Config:
+        from_attributes = True

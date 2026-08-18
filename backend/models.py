@@ -76,3 +76,15 @@ class Experiment(Base):
     start_date = Column(Date, nullable=False)
     status = Column(String, nullable=False, default="active")  # active | completed | stopped
     created_at = Column(DateTime, server_default=func.now())
+
+
+class ExternalFactor(Base):
+    """Manually-entered per-day context (sleep, menstrual phase, free-text memo).
+    One row per date; POST upserts."""
+    __tablename__ = "external_factors"
+
+    id = Column(Integer, primary_key=True)
+    date = Column(Date, nullable=False, unique=True, index=True)
+    sleep_hours = Column(Float, nullable=True)
+    menstrual_phase = Column(String, nullable=True)
+    memo = Column(String, nullable=True)

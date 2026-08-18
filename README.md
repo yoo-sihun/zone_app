@@ -9,6 +9,8 @@
 - 의심 성분을 저장해두면 새 제품 등록 시 자동으로 경고
 - 의심 성분을 3일간 빼고 써보는 실험 추적 (전후 트러블 건수 비교)
 - 같은 날 같은 부위·시간대에 겹쳐 바른 성분 조합이 상성 경고 대상(AHA/BHA+레티놀 등)이면 기록 즉시 안내
+- 수면시간·생리주기 등 외부 요인 수동 기록
+- 기간 선택해서 트러블/도포 히스토리/의심 성분 요약 PDF 리포트 생성
 - 로그인/계정 없음 — 단일 사용자 기준(해커톤 스코프)
 
 ## ⚠️ 이 컴퓨터에서 꼭 알아야 할 것
@@ -67,11 +69,15 @@ backend/
   analysis.py         트러블-성분 대조 분석 로직
   experiments.py       3일 실험 로직 (잠금 판정, 전후 비교 계산)
   interactions.py       성분 조합 상성 정적 테이블
+  reports.py             PDF 리포트 생성 (reportlab)
+  fonts/NanumSquareR.ttf  PDF용 한글 폰트 (SIL OFL)
   routers/
     products.py       /api/products (CRUD), /api/products/ocr
     logs.py            /api/day/{date}, /api/log/toggle, /api/dots 등
     suspects.py         /api/suspects (CRUD)
     experiments.py       /api/experiments (시작/조회/결과/중단)
+    external_factors.py   /api/external-factors (수면/생리주기/메모)
+    reports.py             /api/reports/pdf
 
 ai/
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
