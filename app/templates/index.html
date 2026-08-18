@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ZONE — 부위별 스킨케어 기록</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">ZONE</div>
+    <button class="logoutlink" id="logout">로그아웃</button>
+  </header>
+
+  <div class="datebar">
+    <button id="prev">‹</button>
+    <div class="dlabel" id="dlabel"></div>
+    <button id="next">›</button>
+  </div>
+
+  <div class="modes">
+    <button id="mApply" class="on">제품 바른 부위</button>
+    <button id="mTrouble">트러블 표시</button>
+  </div>
+  <div class="hint" id="hint"></div>
+
+  <div class="face-wrap">
+    <svg id="face" viewBox="0 0 400 440">
+      <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
+
+      <path class="zone" data-z="forehead" d="M104,182 C112,108 152,82 200,82 C248,82 288,108 296,182 C255,158 145,158 104,182 Z"/>
+      <text class="zlabel" x="200" y="135">이마</text>
+
+      <path class="zone" data-z="rcheek" d="M101,196 C131,179 161,181 173,197 L173,291 C161,316 121,301 99,266 C93,241 95,216 101,196 Z"/>
+      <text class="zlabel" x="133" y="250">오른볼</text>
+
+      <path class="zone" data-z="lcheek" d="M299,196 C269,179 239,181 227,197 L227,291 C239,316 279,301 301,266 C307,241 305,216 299,196 Z"/>
+      <text class="zlabel" x="267" y="250">왼볼</text>
+
+      <path class="zone" data-z="nose" d="M200,186 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 Z"/>
+      <text class="zlabel" x="200" y="252">코</text>
+
+      <path class="zone" data-z="chin" d="M151,316 C171,309 229,309 249,316 C254,356 229,394 200,394 C171,394 146,356 151,316 Z"/>
+      <text class="zlabel" x="200" y="355">턱·입주변</text>
+
+      <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
+      <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
+      <g id="dots"></g>
+    </svg>
+  </div>
+
+  <div id="applyUI">
+    <div class="sec">
+      <span>오늘 바른 제품 → 발 부위 탭</span>
+      <span class="add" id="addProductBtn">+ 제품 추가</span>
+    </div>
+    <div class="prods" id="prods"></div>
+    <div class="row">
+      <button class="btn ghost" id="same">이전과 같음</button>
+      <button class="btn ghost" id="clear">전부 지우기</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" id="analyze">의심 성분 분석</button>
+  </div>
+
+</div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="modal" id="productModal"><div class="sheet" id="productSheet"></div></div>
+
+<script>
+window.__ZONES = {{ zones | tojson }};
+window.__ZONE_LABELS = {{ zone_labels | tojson }};
+</script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
