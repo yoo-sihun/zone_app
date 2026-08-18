@@ -11,6 +11,8 @@ from fastapi import Depends
 from .database import Base, engine, get_db
 from .routers import products as products_router
 from .routers import logs as logs_router
+from .routers import suspects as suspects_router
+from .routers import experiments as experiments_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
 from .models import ZONES, ZONE_LABELS
 from .analysis import analyze
@@ -24,6 +26,8 @@ templates = Jinja2Templates(directory="frontend/templates")
 
 app.include_router(products_router.router)
 app.include_router(logs_router.router)
+app.include_router(suspects_router.router)
+app.include_router(experiments_router.router)
 
 
 @app.get("/")

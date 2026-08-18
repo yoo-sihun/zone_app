@@ -1,9 +1,12 @@
+from datetime import date as Date
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Product
-from ..schemas import ProductIn, ProductOut, OcrResult
+from ..models import Product, SuspectIngredient
+from ..schemas import ProductIn, ProductOut, ProductCreateOut, OcrResult
+from ..experiments import locked_ingredient
 
 from ai.ocr import extract_ingredients
 
@@ -12,16 +15,29 @@ router = APIRouter(prefix="/api/products", tags=["products"])
 
 @router.get("", response_model=list[ProductOut])
 def list_products(db: Session = Depends(get_db)):
-    return db.query(Product).all()
+    locked_ing = locked_ingredient(db, Date.today())
+    products = db.query(Product).all()
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "ingredients": p.ingredients,
+            "locked": bool(locked_ing and locked_ing in p.ingredients),
+        }
+        for p in products
+    ]
 
 
-@router.post("", response_model=ProductOut)
+@router.post("", response_model=ProductCreateOut)
 def create_product(data: ProductIn, db: Session = Depends(get_db)):
     product = Product(name=data.name, ingredients=data.ingredients)
     db.add(product)
     db.commit()
     db.refresh(product)
-    return product
+
+    suspects = {s.ingredient for s in db.query(SuspectIngredient).all()}
+    warnings = [ing for ing in product.ingredients if ing in suspects]
+    return {"id": product.id, "name": product.name, "ingredients": product.ingredients, "warnings": warnings}
 
 
 @router.delete("/{product_id}")

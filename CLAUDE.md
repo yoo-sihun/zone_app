@@ -24,7 +24,13 @@
   2. 각 트러블 발생일마다 해당 부위에 `LAG_DAYS`(기본 3일) 이내 발린 제품들의 성분을 집계(`hits`)
   3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
-- 아직 없는 것: AM/PM 구분, 트러블 유형(화농성/붉은기 등) 구분, 3일 실험(A/B) 추적, 성분 조합 상성 체크, 외부 환경 변수(미세먼지 등) — 전부 §5 "향후 아이디어" 참고.
+- 아직 없는 것: AM/PM 구분, 트러블 유형(화농성/붉은기 등) 구분, 성분 조합 상성 체크, 외부 환경 변수(미세먼지 등) — 전부 §5 "향후 아이디어" 참고.
+
+**의심 성분 저장 + 3일 실험 추적** ([backend/experiments.py](backend/experiments.py))은 구현됨:
+- `POST /api/suspects {ingredient}`로 저장해두면, 이후 `POST /api/products`로 등록하는 제품에 그 성분이 있으면 응답의 `warnings`에 표시됨
+- `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
+- `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
+- **프론트는 아직 이 API들을 안 씀** — 프론트 담당이 피그마 디자인 완성 후 연동 예정. 지금은 백엔드 로직/스키마만 있고 UI 연결 없음.
 
 ---
 
@@ -41,6 +47,12 @@ daily_logs             -- "이 날 이 부위에 이 제품을 발랐다"
 
 trouble_dots            -- 트러블 위치 마킹
   id, date, zone, x, y
+
+suspect_ingredients      -- 사용자가 저장해둔 의심 성분
+  id, ingredient (unique), created_at
+
+experiments              -- 3일 성분 제외 실험
+  id, ingredient, start_date, status(active|completed|stopped), created_at
 ```
 
 사용자 구분 컬럼(`user_id`) 없음 — 전역 데이터. `ZONES = [forehead, rcheek, lcheek, nose, chin]` (모델 상단 상수).
@@ -51,13 +63,13 @@ trouble_dots            -- 트러블 위치 마킹
 ## 2. 실제 API 엔드포인트
 
 ```
-GET    /api/products
-POST   /api/products            {name, ingredients: [str]}
+GET    /api/products             → [{id, name, ingredients, locked}]  -- locked는 진행 중인 실험 대상 성분 포함 시 true
+POST   /api/products            {name, ingredients: [str]} → {..., warnings: [str]}  -- 의심 성분 겹치면 warnings에 표시
 DELETE /api/products/{id}
 POST   /api/products/ocr        (multipart image) → {name, ingredients}
 
 GET    /api/day/{date}          → {date, log: {zone: [product_id]}, dots}
-POST   /api/log/toggle          {date, zone, product_id}  -- 있으면 삭제, 없으면 추가
+POST   /api/log/toggle          {date, zone, product_id}  -- 있으면 삭제, 없으면 추가. 실험 중인 성분이 든 제품을 새로 추가하려 하면 400
 POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사
 DELETE /api/log/{date}
 
@@ -65,6 +77,15 @@ POST   /api/dots                {date, zone, x, y}
 DELETE /api/dots/{id}
 
 GET    /api/analysis            → analyze() 결과
+
+GET    /api/suspects            → [{id, ingredient}]
+POST   /api/suspects            {ingredient} -- 이미 있으면 그냥 기존 것 반환(idempotent)
+DELETE /api/suspects/{id}
+
+GET    /api/experiments/active  → 진행 중인 실험 1건 또는 null
+POST   /api/experiments         {ingredient} → 실험 시작 (이미 active면 400)
+GET    /api/experiments/{id}/result → {..., before_count, during_count, improved}
+PATCH  /api/experiments/{id}    → 중단(status=stopped)
 ```
 
 인증 없음 — 모든 엔드포인트가 누구나 호출 가능. `/`가 유일한 페이지 라우트.
@@ -84,9 +105,12 @@ backend/
   models.py          Product / DailyLog / TroubleDot, ZONES 상수
   schemas.py         Pydantic 요청/응답 모델
   analysis.py         트러블-성분 대조 분석 (LAG_DAYS=3)
+  experiments.py       3일 실험 관련 로직 (잠금 판정, 결과 계산) — analysis.py와 별개 모듈
   routers/
-    products.py       /api/products/*  (ai.ocr을 import)
-    logs.py            /api/day, /api/log/*, /api/dots/*
+    products.py       /api/products/*  (ai.ocr, experiments.locked_ingredient을 import)
+    logs.py            /api/day, /api/log/*, /api/dots/*  (experiments.locked_ingredient으로 잠금 체크)
+    suspects.py         /api/suspects/*
+    experiments.py       /api/experiments/*
 
 ai/
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
@@ -102,7 +126,8 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 - **로그인/회원가입을 다시 추가하지 말 것.** 명시적으로 걷어낸 기능임 — 해커톤 스코프상 단일 사용자로 충분하다고 판단해서 제거함. 나중에 여러 사용자가 각자 계정으로 쓰는 서비스로 확장해야 한다면, 그때 `users` 테이블 + 인증 방식(세션 쿠키든 Supabase Auth든)을 다시 설계해서 넣어야 함.
 - `backend/`와 `ai/`는 둘 다 리포 루트 기준 top-level 패키지라서, `backend/routers/products.py`에서 `ai.ocr`을 import할 때 상대 임포트(`..`)가 아니라 절대 임포트(`from ai.ocr import ...`)를 씀. 실행은 항상 리포 루트에서 `uvicorn backend.main:app`으로 해야 경로가 맞음.
 - 성분표 사진은 저장하지 않고 OpenAI에 전달해 텍스트만 추출한 뒤 버림(Storage 불필요).
-- `analysis.py`의 `LAG_DAYS`(기본 3일)는 조정 가능한 상수.
+- `analysis.py`의 `LAG_DAYS`(기본 3일)는 조정 가능한 상수. `experiments.py`의 `EXPERIMENT_DAYS`(기본 3일)는 별개 상수.
+- [frontend/static/js/app.js](frontend/static/js/app.js)의 분석 결과 모달에 아직 남아있는 "2주간 이 성분 빼고 써보시겠어요?" 문구는 이제 실제 백엔드(3일 실험, `/api/experiments`)와 안 맞음 — 프론트 연동할 때 "3일"로 고치거나 실제 API를 붙여야 함.
 
 ---
 
@@ -114,7 +139,6 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 |---|---|
 | AM/PM 구분 도포 기록 | "레티놀은 밤에만" 같은 원인 판별에 유용. `daily_logs`에 `time_slot` 컬럼 추가 필요 |
 | 트러블 유형 세분화 (화농성/붉은기 등) | `trouble_dots`에 `type` 컬럼 추가, `analyze()`를 유형별로 분리 |
-| 3일/2주 실험(A/B) 추적 | 의심 성분 제외 후 트러블 건수 비교. 별도 `experiments` 테이블 필요. 지금 UI(`app.js`의 분석 결과 모달)가 "2주 실험해보시겠어요?"라고 제안만 하고 실제 추적은 안 함 — 문구만 있고 기능은 없는 상태이니 주의 |
 | 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안 |
 | 성분 조합 상성 경고 (AHA/BHA+레티놀 등) | 정적 룩업 테이블 필요, 로직 자체는 단순 |
 | 외부 환경 변수(미세먼지/자외선/수면) 연동 | 에어코리아 공공 API, 대부분은 수동 입력이 현실적 |

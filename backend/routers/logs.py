@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import DailyLog, TroubleDot, ZONES
+from ..models import DailyLog, TroubleDot, Product, ZONES
 from ..schemas import LogToggleIn, DotIn, DaySnapshot
+from ..experiments import locked_ingredient
 
 router = APIRouter(prefix="/api", tags=["logs"])
 
@@ -40,6 +41,15 @@ def toggle_log(data: LogToggleIn, db: Session = Depends(get_db)):
         db.delete(existing)
         db.commit()
         return {"applied": False}
+
+    locked_ing = locked_ingredient(db, data.date)
+    if locked_ing:
+        product = db.query(Product).filter(Product.id == data.product_id).first()
+        if product and locked_ing in product.ingredients:
+            raise HTTPException(
+                status_code=400, detail=f"'{locked_ing}' 실험 진행 중이라 이 제품은 잠겨 있습니다"
+            )
+
     entry = DailyLog(date=data.date, zone=data.zone, product_id=data.product_id)
     db.add(entry)
     db.commit()

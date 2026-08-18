@@ -6,6 +6,8 @@
 - 트러블이 난 위치를 얼굴 위에 직접 표시
 - 트러블 난 부위 vs 안 난 부위(대조군)에 최근 며칠간 발린 성분을 비교해서 의심 성분을 추려줌
 - 제품 등록 시 성분표 사진을 찍으면 OpenAI Vision으로 자동 인식(OCR)
+- 의심 성분을 저장해두면 새 제품 등록 시 자동으로 경고
+- 의심 성분을 3일간 빼고 써보는 실험 추적 (전후 트러블 건수 비교)
 - 로그인/계정 없음 — 단일 사용자 기준(해커톤 스코프)
 
 ## ⚠️ 이 컴퓨터에서 꼭 알아야 할 것
@@ -59,12 +61,15 @@ frontend/
 backend/
   main.py            FastAPI 앱, 페이지 라우트(/), frontend/ 정적 서빙, /api/analysis
   database.py        SQLAlchemy 엔진 (DATABASE_URL 없으면 sqlite 폴백)
-  models.py          Product / DailyLog / TroubleDot (사용자 구분 없음)
+  models.py          Product / DailyLog / TroubleDot / SuspectIngredient / Experiment
   schemas.py         Pydantic 요청/응답 모델
   analysis.py         트러블-성분 대조 분석 로직
+  experiments.py       3일 실험 로직 (잠금 판정, 전후 비교 계산)
   routers/
     products.py       /api/products (CRUD), /api/products/ocr
     logs.py            /api/day/{date}, /api/log/toggle, /api/dots 등
+    suspects.py         /api/suspects (CRUD)
+    experiments.py       /api/experiments (시작/조회/결과/중단)
 
 ai/
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, JSON, Float, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, JSON, Float, UniqueConstraint, func
 
 from .database import Base
 
@@ -41,3 +41,24 @@ class TroubleDot(Base):
     zone = Column(String, nullable=False)
     x = Column(Float, nullable=False)
     y = Column(Float, nullable=False)
+
+
+class SuspectIngredient(Base):
+    """A user-flagged ingredient — new products get checked against this list."""
+    __tablename__ = "suspect_ingredients"
+
+    id = Column(Integer, primary_key=True)
+    ingredient = Column(String, nullable=False, unique=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Experiment(Base):
+    """A 3-day elimination trial: products containing `ingredient` are locked
+    for daily_logs dated within [start_date, start_date + EXPERIMENT_DAYS - 1]."""
+    __tablename__ = "experiments"
+
+    id = Column(Integer, primary_key=True)
+    ingredient = Column(String, nullable=False)
+    start_date = Column(Date, nullable=False)
+    status = Column(String, nullable=False, default="active")  # active | completed | stopped
+    created_at = Column(DateTime, server_default=func.now())
