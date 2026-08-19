@@ -5,8 +5,8 @@ import { useApp } from "@/lib/AppContext";
 
 export default function FaceRecord() {
   const {
-    config, mode, slot, selectedProductIds, focusedParentZone, dayData,
-    zoomTo, zoomOut, toggleLog, placeDot, deleteDot,
+    config, mode, slot, selectedProductIds, focusedParentZone, dayData, currentDate, fmt,
+    zoomTo, zoomOut, stageApply, pendingApplications, placeDot, deleteDot,
   } = useApp();
   const svgRef = useRef(null);
 
@@ -42,7 +42,7 @@ export default function FaceRecord() {
     if (focusedParentZone === parentZone) {
       if (mode === "apply") {
         e.stopPropagation();
-        await toggleLog(clickedZone);
+        stageApply(clickedZone);
       } else if (mode === "trouble") {
         const pt = svg.createSVGPoint();
         pt.x = e.clientX; pt.y = e.clientY;
@@ -63,8 +63,13 @@ export default function FaceRecord() {
     return selectedProductIds.some((id) => slotIds.includes(id));
   }
 
+  function isPending(zone) {
+    const dateStr = fmt(currentDate);
+    return pendingApplications.some((e) => e.zone === zone && e.date === dateStr && e.slot === slot);
+  }
+
   function zoneClass(zone) {
-    return `zone ${isApplied(zone) ? "applied" : ""}`.trim();
+    return `zone ${isApplied(zone) ? "applied" : ""} ${isPending(zone) ? "pending" : ""}`.trim();
   }
 
   function groupClass(mz) {

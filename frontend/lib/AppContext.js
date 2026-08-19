@@ -46,6 +46,10 @@ export function AppProvider({ children }) {
   // ── 데이터 ──
   const [products, setProducts] = useState([]);
   const [selectedProductIds, setSelectedProductIds] = useState([]);
+  // 얼굴 탭은 즉시 저장하지 않고 여기 쌓아뒀다가 "기록 저장" 버튼을 눌러야 서버에 반영됨.
+  // {zone, productId, date, slot, intent}. date/slot을 커밋 시점이 아니라 탭한 시점 값으로 저장해둬야
+  // 저장 전에 날짜/시간대를 바꿔도 엉뚱한 날짜에 적용되지 않음.
+  const [pendingApplications, setPendingApplications] = useState([]);
   const [suspects, setSuspects] = useState([]);
   const [activeExperiment, setActiveExperiment] = useState(null);
   const [dayData, setDayData] = useState({ log: {}, dots: [] });
@@ -263,17 +267,39 @@ export function AppProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyDays, profileId]);
 
-  // ── 얼굴 탭 액션 (제품 도포 토글 / 트러블 점 찍기) ──
-  // 선택된 제품 여러 개를 순차 처리 — 같은 배치 안에서 상성 경고가 서로를 올바르게 반영하도록 Promise.all 대신 순서대로 await
-  const toggleLog = useCallback(async (zone) => {
+  // ── 얼굴 탭 액션 (제품 도포는 바로 저장하지 않고 대기열에 쌓았다가 "기록 저장"으로 한 번에 커밋) ──
+  const stageApply = useCallback((zone) => {
     if (!selectedProductIds.length) { flash("먼저 제품을 고르세요"); return; }
+    const dateStr = fmt(currentDate);
+    const savedIds = (dayData.log[zone] && dayData.log[zone][slot]) || [];
+    setPendingApplications((prev) => {
+      let next = [...prev];
+      for (const productId of selectedProductIds) {
+        const idx = next.findIndex((e) => e.zone === zone && e.productId === productId && e.date === dateStr && e.slot === slot);
+        if (idx !== -1) {
+          next.splice(idx, 1); // 같은 걸 다시 탭하면 대기 취소
+          continue;
+        }
+        next.push({ zone, productId, date: dateStr, slot, intent: savedIds.includes(productId) ? "remove" : "add" });
+      }
+      return next;
+    });
+  }, [selectedProductIds, currentDate, slot, dayData, flash]);
+
+  const cancelPendingApplication = useCallback((zone, productId, date, entrySlot) => {
+    setPendingApplications((prev) => prev.filter((e) => !(e.zone === zone && e.productId === productId && e.date === date && e.slot === entrySlot)));
+  }, []);
+
+  // 대기열에 쌓인 걸 순서대로 커밋 — 같은 배치 안에서 상성 경고가 서로를 올바르게 반영하도록 Promise.all 대신 순서대로 await
+  const commitPendingApplications = useCallback(async () => {
+    if (!pendingApplications.length) { flash("변경사항이 없어요"); return; }
     let appliedCount = 0, removedCount = 0;
     const allWarnings = [];
     try {
-      for (const productId of selectedProductIds) {
+      for (const { zone, productId, date, slot: entrySlot } of pendingApplications) {
         const r = await api("/api/log/toggle", {
           method: "POST",
-          body: JSON.stringify({ date: fmt(currentDate), zone, time_slot: slot, product_id: productId }),
+          body: JSON.stringify({ date, zone, time_slot: entrySlot, product_id: productId }),
         });
         if (r.applied) appliedCount++; else removedCount++;
         if (r.warnings && r.warnings.length) allWarnings.push(...r.warnings);
@@ -283,11 +309,12 @@ export function AppProvider({ children }) {
       else pushToast(removedCount > 1 ? `${removedCount}개 지웠어요` : "지웠어요", "ok");
       showInteractionWarnings(allWarnings);
       refreshBell();
+      setPendingApplications([]);
     } catch (err) {
       alert(err.message);
     }
     await loadDay();
-  }, [selectedProductIds, currentDate, slot, flash, pushToast, showInteractionWarnings, refreshBell, loadDay]);
+  }, [pendingApplications, flash, pushToast, showInteractionWarnings, refreshBell, loadDay]);
 
   const toggleProductSelection = useCallback((id) => {
     setSelectedProductIds((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
@@ -340,6 +367,7 @@ export function AppProvider({ children }) {
   const deleteProduct = useCallback(async (id) => {
     await api(`/api/products/${id}`, { method: "DELETE" });
     setSelectedProductIds((ids) => ids.filter((x) => x !== id));
+    setPendingApplications((prev) => prev.filter((e) => e.productId !== id));
     await loadProducts();
     await loadDay();
   }, [loadProducts, loadDay]);
@@ -353,6 +381,8 @@ export function AppProvider({ children }) {
 
   const clearDay = useCallback(async () => {
     await api(`/api/log/${fmt(currentDate)}`, { method: "DELETE" });
+    const dateStr = fmt(currentDate);
+    setPendingApplications((prev) => prev.filter((e) => e.date !== dateStr));
     await loadDay();
   }, [currentDate, loadDay]);
 
@@ -468,7 +498,8 @@ export function AppProvider({ children }) {
     recommendations,
     historyDays, setHistoryDays, historySummary, pastExperiments,
     bellLogged, refreshBell,
-    toggleLog, removeProductFromZone, placeDot, deleteDot,
+    pendingApplications, stageApply, cancelPendingApplication, commitPendingApplications,
+    removeProductFromZone, placeDot, deleteDot,
     productModal, openProductModal, closeProductModal, saveProduct, deleteProduct,
     copyPrevious, clearDay,
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,

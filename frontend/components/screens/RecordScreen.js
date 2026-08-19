@@ -7,13 +7,14 @@ import WeekStrip from "@/components/WeekStrip";
 
 export default function RecordScreen() {
   const {
-    config, slot, setSlot,
+    config, slot, setSlot, currentDate, fmt,
     setMode,
     focusedParentZone, hint,
     products, selectedProductIds, toggleProductSelection,
     deleteProduct, openProductModal,
     copyPrevious, clearDay, openTroubleScreen, flash,
     dayData, removeProductFromZone,
+    pendingApplications, cancelPendingApplication, commitPendingApplications,
   } = useApp();
 
   useEffect(() => { setMode("apply"); }, [setMode]);
@@ -25,8 +26,9 @@ export default function RecordScreen() {
     if (hint) return hint;
     if (!selectedProductIds.length) return "아래에서 제품을 선택한 후(여러 개 가능) 얼굴을 탭해 상세 부위를 지정하세요.";
     const countLabel = selectedProductIds.length > 1 ? `제품 ${selectedProductIds.length}개 선택됨. ` : "";
+    const saveHint = " 탭해도 바로 저장되지 않아요 — 다 고른 뒤 '기록 저장'을 눌러주세요.";
     return focusedParentZone
-      ? `${countLabel}세부 영역(${ZONE_LABELS[focusedParentZone]})을 탭하여 제품을 바르거나 지우세요.`
+      ? `${countLabel}세부 영역(${ZONE_LABELS[focusedParentZone]})을 탭하여 표시하세요.${saveHint}`
       : `${countLabel}얼굴 부위를 탭하면 세부 영역이 확대됩니다.`;
   }
 
@@ -54,14 +56,22 @@ export default function RecordScreen() {
   function getSlotWarnings() {
     const activeIngredients = new Set();
     const appliedProductIds = new Set();
-    
+    const dateStr = fmt(currentDate);
+
     if (dayData && dayData.log) {
       Object.keys(dayData.log).forEach((zone) => {
         const slotProdIds = dayData.log[zone][slot] || [];
         slotProdIds.forEach((pid) => appliedProductIds.add(pid));
       });
     }
-    
+    // 아직 저장 전이라도 대기 중인 항목까지 합쳐서 미리보기 — 'remove' 대기는 저장되면 없어질 거라 제외
+    pendingApplications
+      .filter((e) => e.date === dateStr && e.slot === slot)
+      .forEach((e) => {
+        if (e.intent === "add") appliedProductIds.add(e.productId);
+        else appliedProductIds.delete(e.productId);
+      });
+
     appliedProductIds.forEach((pid) => {
       const prod = products.find((p) => p.id === pid);
       if (prod) {
@@ -85,6 +95,7 @@ export default function RecordScreen() {
 
   // 얼굴 하이라이트는 현재 선택한 제품 기준이라, 선택을 안 하면 이 슬롯에 뭘 발랐는지 안 보임 —
   // 그래서 선택 여부와 무관하게 이 날짜/슬롯 기록을 항상 목록으로 보여주고 항목별로 바로 지울 수 있게 함
+  const dateStr = fmt(currentDate);
   const slotEntries = [];
   if (dayData && dayData.log) {
     Object.keys(dayData.log).forEach((zone) => {
@@ -95,6 +106,13 @@ export default function RecordScreen() {
       });
     });
   }
+
+  const pendingForView = pendingApplications
+    .map((e, idx) => ({ ...e, idx }))
+    .filter((e) => e.date === dateStr && e.slot === slot)
+    .map((e) => ({ ...e, product: products.find((p) => p.id === e.productId) }))
+    .filter((e) => e.product);
+  const otherPendingCount = pendingApplications.length - pendingForView.length;
 
   return (
     <div className="screen" id="screenRecord">
@@ -114,6 +132,33 @@ export default function RecordScreen() {
       <div className="hint" style={hint ? { color: "#E14B48" } : undefined}>{hintText()}</div>
 
       <FaceRecord />
+
+      {pendingForView.length > 0 && (
+        <>
+          <div className="sechead" style={{ marginTop: 16 }}>
+            <h3>저장 대기 중 ({pendingForView.length})</h3>
+          </div>
+          <div className="record-entry-list">
+            {pendingForView.map((e) => (
+              <div key={`${e.zone}-${e.productId}-${e.idx}`} className="record-entry-row pending">
+                <span className="record-entry-zone">{ZONE_LABELS[e.zone] || e.zone}</span>
+                <span className="record-entry-name">
+                  {e.product.name}{e.intent === "remove" ? " (삭제 예정)" : ""}
+                </span>
+                <button className="record-entry-del" onClick={() => cancelPendingApplication(e.zone, e.productId, e.date, e.slot)}>취소</button>
+              </div>
+            ))}
+          </div>
+          {otherPendingCount > 0 && (
+            <div className="hint" style={{ marginBottom: 8 }}>다른 날짜/시간대에 대기 중인 항목 {otherPendingCount}개 더 있어요.</div>
+          )}
+          <div className="row" style={{ marginBottom: 20 }}>
+            <button className="btn primary" style={{ width: "100%" }} onClick={commitPendingApplications}>
+              기록 저장 ({pendingApplications.length}건)
+            </button>
+          </div>
+        </>
+      )}
 
       {slotEntries.length > 0 && (
         <>

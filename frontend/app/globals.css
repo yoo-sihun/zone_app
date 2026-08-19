@@ -806,6 +806,12 @@ body {
 }
 
 /* Group-level hover effect when zoomed out */
+.face-svg.zoomed-out .zone.pending {
+  stroke: var(--amber);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 3;
+}
+
 .face-svg.zoomed-out .zone-group:hover .zone {
   fill: rgba(124, 111, 232, 0.12);
 }
@@ -848,6 +854,12 @@ body {
 
 .face-svg:not(.zoomed-out) .focused .zone.applied:hover {
   fill: var(--teal-dark);
+}
+
+.face-svg:not(.zoomed-out) .focused .zone.pending {
+  stroke: var(--amber);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 3;
 }
 
 .face-svg:not(.zoomed-out) .focused .parent-label {
@@ -1349,6 +1361,18 @@ body {
   cursor: pointer;
   padding: 4px 6px;
   flex-shrink: 0;
+}
+
+.record-entry-row.pending {
+  background: #FFFBEB;
+  border-color: var(--amber);
+}
+.record-entry-row.pending .record-entry-zone {
+  background: #FEF3C7;
+  color: #B45309;
+}
+.record-entry-row.pending .record-entry-del {
+  color: var(--text-muted);
 }
 
 .chip-row {
