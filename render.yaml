@@ -19,3 +19,5 @@ services:
         value: 종로구
       - key: KMA_API_KEY
         sync: false
+      - key: KMA_UV_API_KEY
+        sync: false

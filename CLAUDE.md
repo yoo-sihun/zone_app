@@ -27,7 +27,7 @@
   3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
   5. 응답에 상황별 안내 문구(`message`)도 같이 반환 — 트러블 기록 없음 / 대조군(안 난 부위) 없음 / 겹치는 성분 없음 / 기록 기간이 `LAG_DAYS`보다 짧음 / 정상적으로 N일치 분석함, 5가지 상태를 서버에서 판단해서 문자열로 내려줌. 프론트는 이 문구를 그대로 표시하면 되고, "데이터 충분한지" 판단 로직을 프론트에서 다시 만들 필요 없음.
-- 아직 없는 것: 자외선 자동 연동(습도와 다른 API 필요), 바코드 스캔 — §6 "향후 아이디어" 참고.
+- 아직 없는 것: 바코드 스캔 — §6 "향후 아이디어" 참고.
 
 **AM/PM 구분 + 트러블 유형**은 구현됨:
 - `daily_logs.time_slot`(`am`/`pm`)로 도포 시간대 구분. `analyze()`의 `suspects`에 `time_slots` 필드가 붙어서, 어떤 성분이 아침에만/저녁에만/둘 다 발렸는지 알 수 있음 (매칭 로직 자체는 시간대로 거르지 않고, 정보만 부가).
@@ -38,7 +38,7 @@
 - `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
 - **프론트 연동 완료, 홈 대시보드 + 하단 네비게이션 구조**([frontend/lib/AppContext.js](frontend/lib/AppContext.js)) — 화면 4개(홈/히스토리/기록/마이)를 JS로 전환하는 SPA 형태:
-  - **홈**: 오늘의 피부 날씨 카드(PM2.5 실제 값 + 습도/자외선은 "준비 중"), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트)
+  - **홈**: 오늘의 피부 날씨 카드(PM2.5·습도·자외선 전부 실제 값, "날씨 동기화" 버튼으로 셋 다 한번에 갱신), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트)
   - **히스토리**: PDF·텍스트가 아니라 **얼굴 SVG에 직접 시각화**하는 화면 — 기간(7일/30일/전체) 선택하면 `/api/history/summary`로 부위별 도포 횟수(진할수록 자주 바른 부위, 틸 컬러 `fill-opacity`로 표현)와 그 기간의 트러블 점 전체(실제 x,y 좌표, 유형별 색상)를 같은 얼굴 위에 겹쳐서 보여줌 — "어디를 많이 발랐고 어디서 트러블이 났는지"를 한눈에 대조하려는 목적. `.hzone`(기록 화면의 `.zone`과 다른 클래스 — 기록 화면 탭 핸들러에 안 걸리게 분리)에 JS가 인라인으로 `fill-opacity` 설정. PDF 리포트 다운로드 버튼도 이 화면에 있음(완전히 대체한 게 아니라 같이 씀). "지난 실험" 목록(`GET /api/experiments`)도 여기 — 클릭하면 실험 결과 모달(활성/완료/중단 상관없이 다 조회 가능)
   - **기록**: 기존 얼굴 SVG + 제품 바른 부위/트러블 표시 — AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/3일 실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트가 다 여기. 제품 목록에 "수정"(`PATCH /api/products/{id}`) 링크 추가됨(이전엔 삭제 후 재등록만 가능했음)
   - **마이**: 현재 프로필 이름 + 프로필 전환, 외부 요인/의심 성분/리포트 바로가기, **프로필 삭제**(`DELETE /api/profiles/{id}`, 그 프로필의 모든 데이터를 연쇄 삭제하는 되돌릴 수 없는 동작 — 프론트에서 확인창 한 번만 거치므로 실수 삭제 주의)
@@ -54,7 +54,7 @@
 - `external_factors` 테이블(날짜당 1행): `POST /api/external-factors {date, sleep_hours?, menstrual_phase?, memo?}`로 upsert, `GET /api/external-factors/{date}`로 조회(없으면 null).
 - 미세먼지(PM2.5)는 [backend/airkorea.py](backend/airkorea.py)로 에어코리아 공공API 연동해서 자동 조회 가능: `POST /api/external-factors/{date}/sync-pm25` 호출하면 그 날짜의 PM2.5 시간별 평균을 가져와 `external_factors.pm25`에 저장(기존 sleep_hours/memo 등은 그대로 유지, pm25만 갱신). 자동 배치 없음 — 호출해야 채워짐. 기준 측정소는 `AIRKOREA_STATION` 환경변수(기본값 "종로구"=서울), 인증키는 `AIRKOREA_API_KEY`(data.go.kr에서 발급받은 **URL-인코딩된** 값 그대로 넣어야 함 — 다시 인코딩하면 깨짐).
 - 습도는 [backend/weather.py](backend/weather.py)로 기상청 API Hub(`apihub.kma.go.kr`, data.go.kr이 아니라 기상청 자체 포털 — 인증 파라미터명도 `serviceKey`가 아니라 `authKey`)의 **동네예보 초단기실황조회**(`getUltraSrtNcst`) 연동해서 자동 조회 가능 — 실제 관측값(nowcast)이라 **오늘 날짜만 지원**(에어코리아 PM2.5처럼 과거 날짜 조회는 안 됨, 다른 날짜로 호출하면 400). 격자 좌표는 `KMA_NX`/`KMA_NY` 환경변수(기본값 60/127, 종로구 — `AIRKOREA_STATION` 기본값과 같은 지역), 인증키는 `KMA_API_KEY`(순수 영숫자라 에어코리아 서비스키와 달리 URL 재인코딩 걱정 없음, httpx `params`로 그냥 넘기면 됨).
-- 자외선(UV)은 이 API에 없음 — 기상청의 별도 API(생활기상지수 등) 필요, 아직 미연동. `fetch_humidity_uv()`는 항상 `uv_index: None` 반환.
+- 자외선지수는 초단기실황이 아니라 **공공데이터포털(data.go.kr)**의 "기상청_생활기상지수 조회서비스"(`getUVIdxV5`) 별도 연동 — 3시간 단위 예보값이라 현재시각을 3시간 단위로 내림한 발표시간으로 조회하고 그 시점(`h0`) 값을 씀, 아직 발표 전이면 이전 발표시간으로 최대 3번 재시도. 인증키는 `KMA_UV_API_KEY`(에어코리아 서비스키처럼 URL-인코딩된 값 그대로 써야 함 — `KMA_API_KEY`의 `authKey`와는 다른 포털·다른 인코딩 방식이라 헷갈리지 말 것), 지점코드는 `KMA_AREA_NO`(기본값 `1100000000`=서울). `KMA_UV_API_KEY`만 없으면 습도는 정상 반환하고 `uv_index`만 `None`으로 채움(전체를 실패시키지 않음).
 - `GET /api/reports/pdf?start=&end=`가 그 기간의 트러블 발생 현황(날짜·부위·유형 표) + 도포 제품 히스토리(날짜·시간대·부위·제품명 표) + 저장된 의심 성분 목록을 한 장짜리 PDF로 만들어 바로 다운로드(`StreamingResponse`, `application/pdf`)로 반환. 상태 폴링(pending/ready) 같은 거 없이 요청-응답 안에서 동기 생성 — 리포트 만드는 데이터양이 해커톤 스코프에서 그 정도로 크지 않다고 판단.
 - **한글 폰트 이슈 주의**: `reportlab`으로 한글을 그릴 때 `UnicodeCIDFont`(예: `HYGothic-Medium`)는 글리프를 PDF에 임베드하지 않고 뷰어가 시스템에 깔린 한글 폰트로 대체 렌더링하는 방식이라, 뷰어에 맞는 폰트가 없으면 빈 칸으로 나옴(실제로 이 문제를 겪고 확인함). 그래서 [backend/fonts/NanumSquareR.ttf](backend/fonts/NanumSquareR.ttf)(네이버 나눔스퀘어, SIL OFL 라이선스, 재배포 허용)를 리포에 직접 넣고 `TTFont`로 통째로 임베드하는 방식을 씀([backend/reports.py](backend/reports.py)) — 이러면 뷰어 환경과 무관하게 항상 제대로 보임. 폰트 파일을 지우거나 바꾸면 리포트가 다시 깨지니 주의.
 
@@ -84,7 +84,7 @@ suspect_ingredients      -- 사용자가 저장해둔 의심 성분
 experiments              -- 3일 성분 제외 실험
   id, profile_id, ingredient, start_date, status(active|completed|stopped), created_at
 
-external_factors         -- 프로필+날짜당 1행, 수동 입력 + 미세먼지 자동 동기화 + 습도/자외선(스캐폴드)
+external_factors         -- 프로필+날짜당 1행, 수동 입력 + 미세먼지/습도/자외선 자동 동기화
   id, profile_id, date, sleep_hours, menstrual_phase, memo, pm25, humidity, uv_index
   unique(profile_id, date)
 ```
@@ -137,7 +137,7 @@ PATCH  /api/experiments/{id}    → 중단(status=stopped)
 POST   /api/external-factors    {date, sleep_hours?, menstrual_phase?, memo?} -- upsert (pm25는 건드리지 않음)
 GET    /api/external-factors/{date} → 값 또는 null
 POST   /api/external-factors/{date}/sync-pm25 → 에어코리아에서 그 날짜 PM2.5 평균 가져와 저장
-POST   /api/external-factors/{date}/sync-weather → 기상청 초단기실황조회로 그날의 습도 저장(uv_index는 항상 null). **오늘 날짜만 지원** — 다른 날짜면 400, `KMA_API_KEY` 없으면 501
+POST   /api/external-factors/{date}/sync-weather → 기상청 초단기실황조회(습도) + 생활기상지수(자외선지수) 저장. **오늘 날짜만 지원** — 다른 날짜면 400, `KMA_API_KEY` 없으면 501. `KMA_UV_API_KEY`만 없으면 습도만 채워지고 uv_index는 null
 
 GET    /api/reports/pdf?start=&end= → PDF 파일 스트리밍 다운로드 (기간 내 트러블/도포 히스토리/의심 성분/외부 요인 요약)
 
@@ -168,7 +168,7 @@ backend/
   experiments.py       3일 실험 관련 로직 (잠금 판정, 결과 계산) — analysis.py와 별개 모듈
   interactions.py       성분 조합 상성 정적 테이블 + 체크 함수
   airkorea.py            에어코리아 미세먼지 API 호출 (PM2.5 일평균 계산)
-  weather.py             기상청 API Hub 초단기실황조회로 오늘의 습도 연동 (KMA_API_KEY 필요, 오늘 날짜만 지원). 자외선은 아직 미연동
+  weather.py             기상청 API Hub 초단기실황조회(습도) + data.go.kr 생활기상지수(자외선지수) 연동, 둘 다 오늘 날짜만 지원
   reports.py             PDF 리포트 생성 (reportlab, 한글 폰트 임베드)
   fonts/
     NanumSquareR.ttf     PDF용 한글 폰트 (SIL OFL, reports.py가 TTFont로 임베드)
@@ -231,7 +231,6 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 | 항목 | 메모 |
 |---|---|
 | 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안이나, 실제로 "바코드→전성분" 매핑까지 제공하는지 확인 필요 |
-| 자외선지수 연동 | 습도는 §0에 적힌 대로 이미 연동됨. 자외선은 별도 API(생활기상지수 등) 신청·연동 필요 |
 | pm25 자동 배치/분석 연동 | 지금은 `sync-pm25`를 수동 호출해야 채워짐. 트러블 발생일 자동 동기화나, `analyze()`에 "트러블 난 날 pm25 평균 vs 클린 기간 평균 비교" 같은 상관관계 로직은 아직 없음 |
 | 진짜 인증(비밀번호/세션) | 지금은 `X-Profile-Id` 헤더만으로 프로필을 구분함 — 헤더 값을 알면 남의 데이터도 볼 수 있어서 진짜 보안은 아님. 여러 명이 진짜 비밀로 데이터를 지켜야 하면 그때 세션/비밀번호를 다시 설계 |
 | 진짜 웹푸시 알림 | 지금은 앱을 열었을 때 벨 아이콘에 배지만 뜸(`/api/today-status`). 브라우저 꺼도 오는 푸시는 서비스워커+VAPID+서버 스케줄러 필요 |
