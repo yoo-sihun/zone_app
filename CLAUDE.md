@@ -32,7 +32,7 @@
 - **`suspects` 순위에 AI 재정렬이 한 단계 더 붙음** — `analyze()`가 위 5단계로 계산한 `score` 기준 순위를, `backend/main.py`의 `/api/analysis` 라우트가 `ai/rank_suspects.py`의 `rank_suspects()`에 한 번 더 넘겨서 최종 순서를 정함(성분 지식 기반 추가 보정 + `ai_reason` 한 줄 설명 부여). OpenAI 호출 실패 시(키 없음, 레이트리밋 등) 예외를 전부 삼키고 `score` 기준 순서 그대로 폴백함(`ai_ranked: false`) — 핵심 분석 기능이 AI 장애로 죽지 않게 함.
 - **서브존/상위부위 도포 기록 매칭 버그 수정됨** — `analyze()`의 `_related_zones()` 헬퍼(범용, `products.py`의 추천 필터 등에서도 씀)로 "같은 물리적 영역"을 자신 + 상위부위(서브존이면) + 모든 서브존(상위부위면)으로 확장해서 비교함. 예전엔 `bad_zones`/`good_zones` 판정만 이렇게 확장하고, 정작 "그 부위에 뭘 발랐는지" 찾는 매칭은 `DailyLog.zone == 트러블.zone` 완전 일치만 봐서 — 트러블은 서브존에, 도포는 상위부위에(또는 반대로) 기록된 경우 서로 못 찾는 버그가 있었음. 데모 데이터 만들다가 실제로 걸려서 발견·수정함. (bad/neutral/good 3분할용으로는 형제 서브존을 bad로 안 뭉치는 별도 헬퍼 `_bad_zone_set_for_dot()`을 씀 — 위 참고.)
 - **외부요인 상관관계 분석**(`_external_factor_insight()`) — `analyze()` 응답의 `external_insight` 필드. 트러블 난 날들의 평균 미세먼지/습도/자외선을 그 외 기록 있는 날(트러블 없던 날) 평균과 비교해서, 15% 이상 차이 나면 한 줄 문구로 알려줌(예: "트러블 난 날은 미세먼지가 평소보다 343% 높았어요"). 양쪽 다 최소 2일치 데이터 필요 — 부족하면 `null`(프론트는 그 항목을 그냥 안 보여줌). 상관관계일 뿐 인과관계 판단 아님.
-- 아직 없는 것: 바코드 스캔 — §6 "향후 아이디어" 참고.
+- 바코드 스캔은 빼기로 결정함(미구현이 아니라 의도적 제외) — 실제 바코드→전성분 매핑 데이터소스가 확인 안 돼서. §6 참고.
 
 **AM/PM 구분 + 트러블 유형**은 구현됨:
 - `daily_logs.time_slot`(`am`/`pm`)로 도포 시간대 구분. `analyze()`의 `suspects`에 `time_slots` 필드가 붙어서, 어떤 성분이 아침에만/저녁에만/둘 다 발렸는지 알 수 있음 (매칭 로직 자체는 시간대로 거르지 않고, 정보만 부가).
@@ -43,16 +43,19 @@
 - `POST /api/experiments {ingredient, duration_days}`로 실험 시작 — `duration_days`는 `EXPERIMENT_DAY_OPTIONS`(`[3, 7]`) 중 하나만 허용, 안 보내면 기본 3일(`EXPERIMENT_DAYS`). 각 실험은 자기 `duration_days`를 DB에 저장해 갖고 있음(실험마다 기간이 다를 수 있음) — 시작일부터 `duration_days - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 `duration_days`일 vs 진행 `duration_days`일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 그 기간이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
 - 프론트(`AnalysisModal.js`)는 분석 결과 화면에서 실험 시작 전 3일/7일 칩으로 기간을 고르게 하고, `GET /api/config`의 `experiment_day_options`로 선택지를 받아옴. `ExpBar`/`AnalysisScreen`/`ExpResultPanel`은 전부 `config.experiment_days`(전역 기본값) 대신 그 실험 객체 자신의 `duration_days`를 읽어서 표시함 — 실험마다 기간이 다를 수 있어서 전역 상수를 쓰면 틀리게 나옴.
-- **프론트 연동 완료, 하단 5탭 네비게이션 구조**([frontend/lib/AppContext.js](frontend/lib/AppContext.js)) — 화면(홈/기록/분석/화장대/MY)을 JS로 전환하는 SPA 형태. 피그마 리다이자인(팀 프론트 담당자 작업물)을 받아서 이 구조로 새로 짬 — 예전엔 홈/히스토리/기록/마이 4탭이었고 트러블 기록이 "기록" 화면 안 탭 전환이었는데, 지금은 아래처럼 바뀜:
-  - **홈**: 오늘의 피부 날씨 카드(PM2.5·습도·자외선 전부 실제 값, "날씨 동기화" 버튼으로 셋 다 한번에 갱신), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트)
-  - **기록**: AM/PM별로 헤더 문구가 바뀌는 인사말 카드(`RecordScreen.js`의 `.record-slot-hero`, "오늘 아침/저녁에 사용한 제품을 기록해볼까요?") + **실제 주간 캘린더**(`components/WeekStrip.js` — 선택한 날짜 기준 앞뒤 3일씩 7일을 보여주고 탭하면 바로 그 날짜로 이동, 미래 날짜는 비활성화. `AppContext.js`의 `goToDate()`로 임의 날짜 이동 가능, 기존 `goPrevDay`/`goNextDay`는 하루씩 이동만 가능했음) + 얼굴 SVG + 제품 선택(도포만, 트러블 아님). "최근 사용 제품" 목록은 이름 그대로 **실제 최근 사용한 순서로 정렬**됨(`GET /api/products`가 이제 이렇게 정렬해서 줌, §2 참고). 하단에 "🔴 트러블도 기록할까요? + 기록하기" 카드가 있고, 누르면 별도의 **트러블 기록 화면**(`screen === 'trouble'`, 하단 탭엔 없고 기록 화면의 하위 흐름 — `openTroubleScreen()`/`closeTroubleScreen()`으로 진입·복귀)으로 전환됨. 이 화면엔 트러블 유형 선택 + AI 사진 판단 + 얼굴 SVG(트러블 모드) + 외부/생활 요인(날씨·자외선은 읽기전용, 수면시간·오늘의 피부 상태는 인라인 입력) + **"기록 저장" 버튼**이 다 있음 — "그냥 바르고 끝"과 "트러블 기록"을 명확히 분리해서, 트러블이 없는 날은 원인분석 버튼 같은 게 안 보이게 함(예전엔 기록 화면 맨 아래에 분석 버튼이 항상 떠 있어서 "이거 눌러야 끝나나?" 하는 혼란이 있었음, 그래서 분리·이동함)
-  - **분석**: `AnalysisScreen.js` — "AI 피부 진단" 진입 카드(원인 분석 시작하기 → `AnalysisModal` 오픈) + 3단계 안내(데이터 수집/성분 분석/결과 확인) + 그 아래에 예전 히스토리 화면 전체를 그대로 포함(`HistoryScreen.js`를 하위 컴포넌트로 재사용) — 기간별 얼굴 시각화(`/api/history/summary`), PDF 리포트 버튼, 지난 실험 목록이 여기 다 있음. `.hzone`(기록 화면의 `.zone`과 다른 클래스)에 JS가 인라인으로 `fill-opacity` 설정하는 방식은 그대로.
-  - **화장대**: `VanityScreen.js` — 제품 등록/관리 전용 화면(예전엔 기록 화면 안에 있었음). 제품 없으면 빈 상태 카드 + 등록 방법 안내(이름/성분 직접입력, 전성표 촬영). 바코드 스캔은 이번 스코프에서 제외(실제 바코드→전성분 매핑 데이터소스 확인 안 됨).
+- **프론트 연동 완료, 하단 5탭 네비게이션 구조**([frontend/lib/AppContext.js](frontend/lib/AppContext.js)) — 화면(홈/기록/분석/화장대/MY)을 JS로 전환하는 SPA 형태. 상단 헤더 로고는 "MUDI"로 리브랜딩됐음(`TopBar.js`) — 프로젝트/리포 이름 자체는 여전히 ZONE, UI 표시 이름만 바뀐 것. 피그마 리다이자인(팀 프론트 담당자 작업물)을 받아서 이 구조로 새로 짬 — 예전엔 홈/히스토리/기록/마이 4탭이었음. 지금은 아래처럼 바뀜:
+  - **홈**: 오늘 기록 안 했으면 상단에 CTA 배너("오늘 아직 스킨케어 기록이 없어요" → 기록 화면으로). 오늘의 피부 날씨 카드(PM2.5·습도·자외선 전부 실제 값, 🔄 아이콘 버튼으로 셋 다 한번에 갱신). 빠른 메뉴 4개(제품 추천 → 아래 **제품 추천 화면**, 성분 분석 → 분석 모달 바로 열기, 트러블 기록 → 기록 화면을 트러블 모드로 열기, 분석 리포트). 실험 진행 중이면 카드로 한 번 더 보여줌(상단 `ExpBar`와 별개, 중복이지만 눈에 잘 띄라고 둘 다 둠). "오늘의 한눈에 요약" 카드(트러블·붉은자국 건수는 실데이터, 건조함/유분은 습도·자외선 기반 추정 — "피부 상태: 복합성" 배지는 아직 고정 텍스트라서 실제 `skin_condition`값과는 무관함, 나중에 손볼 여지 있음). 최근 사용 제품 가로 스크롤(클릭하면 그 제품을 선택한 채로 기록 화면으로 이동 + 안내 토스트, 화면 맨 위로 스크롤).
+  - **제품 추천**(`RecommendScreen.js`, 하단 탭엔 없음): 홈의 "제품 추천" 버튼으로 들어가는 서브 화면(뒤로가기 화살표 헤더 — 예전 트러블 기록 화면이 쓰던 것과 같은 패턴). 부위 필터 칩(전체+5부위, `GET /api/products/recommended?zone=`) + 체크박스 다중선택으로 여러 제품을 한 번에 고른 뒤 "선택한 제품 N개 바르러 가기"를 누르면 기록 화면으로 이동, 고른 제품들이 이미 선택된 채로 시작함.
+  - **기록**(`RecordScreen.js`): 상단 "🧴 화장품 도포 기록" / "🔴 트러블 발생 기록" 토글로 **한 화면 안에서 모드만 전환**함 — 예전엔 트러블 기록이 별도 화면(`screen === 'trouble'`, `openTroubleScreen()`/`closeTroubleScreen()`)이었는데 그 화면(`TroubleScreen.js`)은 삭제되고 이 토글로 합쳐짐(`AppContext.js`의 `setMode()`). 실제 주간 캘린더(`components/WeekStrip.js` — 선택한 날짜 기준 앞뒤 3일씩 7일, 탭하면 그 날짜로 이동, 미래 날짜 비활성화, `goToDate()`)는 두 모드 공통으로 위에 고정 표시.
+    - **도포 모드**: 제품을 **체크박스로 다중 선택**(`toggleProductSelection`) 가능. 하나 이상 고르고 얼굴 부위를 탭해도 **바로 저장되지 않음** — `pendingApplications` 대기열에 쌓이고 그 부위엔 노란 점선 테두리가 표시됨. "기록 저장" 버튼을 눌러야 대기열을 순서대로 `POST /api/log/toggle`에 반영함(같은 배치 안에서 성분 상성 경고가 서로를 올바르게 반영하도록 순서대로 처리, 탭한 시점의 날짜/시간대를 대기 항목에 같이 저장해둬서 저장 전에 날짜·시간대를 바꿔도 안 꼬임). 이미 서버에 저장된 기록은 대기와 별개로 항상 목록으로 보임(얼굴 하이라이트는 지금 선택 중인 제품 기준이라 선택을 안 하면 그 날 뭘 발랐는지 안 보이는 문제가 있어서 목록을 따로 둠) — 항목별 "삭제"는 즉시 반영(대기 없음). 성분 상성 경고는 **더 이상 프론트에서 미리 계산하지 않음**(예전엔 백엔드 테이블을 프론트에 하드코딩해서 저장 전 미리보기를 띄웠는데, 두 테이블이 어긋날 위험이 있어서 삭제함) — "기록 저장" 시점에 서버가 실제로 계산한 경고만 토스트로 보여줌.
+    - **트러블 모드**: 트러블 유형 선택 + AI 사진 판단(베타) + 얼굴 SVG(탭하면 **대기열 없이 바로** 점이 찍힘) + 그 날 기록된 트러블 목록(항목별 즉시 삭제) + 외부/생활 요인(날씨·자외선은 읽기전용, 수면시간·오늘의 피부 상태는 인라인 입력) + "생활 요인 저장" 버튼. 이 버튼은 트러블 점이 아니라 수면·피부상태 등 외부요인 폼만 저장함 — 트러블 점 자체는 탭하는 순간 이미 저장됨(버튼과 무관).
+  - **분석**(`AnalysisScreen.js`): 상단에 "기록 N일차 / 최소 3일 필요" 신뢰도 배지(화면 진입 시 가볍게 `GET /api/analysis`를 한 번 호출해서 채움, §0 신뢰도 등급 참고). "✨ AI 원인 분석" 진입 카드(원인 분석 시작하기 → `AnalysisModal` 오픈) + "이미 의심되는 성분이 있나요? 실험 바로 시작하기" 카드(원인 분석 없이 바로 실험 시작 — 저장해둔 의심 성분 중 고르거나 직접 입력 + 3일/7일 선택, `StartExperimentPanel.js`) + 3단계 안내(데이터 수집/성분 분석/결과 확인) + 그 아래에 예전 히스토리 화면 전체를 그대로 포함(`HistoryScreen.js`를 하위 컴포넌트로 재사용). 실험이 진행 중이면 이 화면 전체가 진행 상황 뷰(타임라인 스텝퍼, 실험 전/중 비교, "오늘의 피부 상태 기록하러 가기" 바로가기)로 바뀜 — 실험 중단 버튼은 여기 없고 상단 `ExpBar`에만 있음(중복이라 뺌).
+  - **화장대**(`VanityScreen.js`): 제품 등록/관리 전용 화면. 등록 방법 카드는 2개(이름/성분 직접입력, 전성표 촬영 OCR) + "의심 성분 자동 체크" 카드 1개 — 이건 실제로는 등록 "방법"이 아니라 `SuspectsPanel`(의심 성분 목록 관리)로 바로 연결됨. 의심 성분은 등록해두면 `POST`/`PATCH /api/products`가 어떤 등록 방법으로 넣든 자동으로 겹치는지 체크해주는 게 실제 동작이라, 카드를 "그 목록을 관리하는 곳"으로 연결한 것. **바코드 스캔 카드는 완전히 뺐음**(전엔 라벨만 있고 실제로는 아무 것도 안 하는 채로 방치돼있었는데, 그 상태로 둘 이유가 없어서 제거 — §6 참고).
   - **MY**: 현재 프로필 이름 + 프로필 전환, 외부 요인/의심 성분/리포트 바로가기, **프로필 삭제**(`DELETE /api/profiles/{id}`, 그 프로필의 모든 데이터를 연쇄 삭제하는 되돌릴 수 없는 동작 — 프론트에서 확인창 한 번만 거치므로 실수 삭제 주의)
   - 헤더의 🔔 벨 아이콘: `/api/today-status`로 오늘 기록 여부 확인해서 배지 표시 — 브라우저 꺼도 오는 진짜 푸시 아니고 앱 켰을 때만 보이는 인앱 알림
-  - 외부 요인 폼(수면시간/생리주기/메모/오늘의 피부 상태/PM2.5 동기화)은 `frontend/lib/useExternalFactors.js` 훅으로 공용화 — 마이 화면 모달(`FactorsPanel.js`)과 트러블 기록 화면 인라인이 이 훅 하나를 같이 씀, 로직 중복 없음.
+  - 외부 요인 폼(수면시간/생리주기/메모/오늘의 피부 상태/PM2.5 동기화)은 `frontend/lib/useExternalFactors.js` 훅으로 공용화 — 마이 화면 모달(`FactorsPanel.js`)과 기록 화면의 트러블 모드가 이 훅 하나를 같이 씀, 로직 중복 없음.
   - **리포트 화면**(`ReportPanel.js`, "마이"/"분석" 양쪽에서 진입) — 기간 선택하면 `GET /api/history/zone-status`로 5개 상위 부위별 상태 배지(양호/정상범위/진행중/주의) + AI 관리팁을 카드로 보여주고, 상태가 "양호"가 아닌 부위는 그 부위 기준 제품 추천(`GET /api/products/recommended?zone=`, §0)도 한 줄 붙음. PDF 다운로드 버튼은 그대로 유지(완전히 대체 아니고 같이 씀). 상태 배지 임계값은 `backend/routers/history.py`의 `_STATUS_THRESHOLDS` 상수(트러블 건수: 0=양호/≤2=정상범위/≤5=진행중/그 이상=주의) — 조정 가능.
-- **디자인**: 밝은 화이트+틸 톤의 "의료/피부과학" 느낌. 사용자가 준 레퍼런스(홈 대시보드+하단 탭 구조)를 참고해서 다시 짰지만, 레퍼런스에 있던 별점/제품 사진/추천 엔진/알림 배지 중 실제 데이터가 없는 건(별점, 제품 사진) 그대로 안 넣었음 — 장식용 UI를 만들지 않는다는 원칙. 팀 프론트 담당자의 피그마 디자인이 나오면 다시 교체될 수 있음.
+- **디자인**: 밝은 화이트+퍼플 톤의 "의료/피부과학" 느낌(원래 틸이었다가 퍼플로 다시 칠해짐 — CSS 변수명은 여전히 `--teal`이라 실제 색상값이랑 이름이 안 맞으니 헷갈리지 말 것). 사용자가 준 레퍼런스(홈 대시보드+하단 탭 구조)를 참고해서 다시 짰지만, 레퍼런스에 있던 별점/제품 사진처럼 실제 데이터가 없는 건 그대로 안 넣었음 — 장식용 UI를 만들지 않는다는 원칙. 다만 홈 화면의 "피부 상태: 복합성" 배지는 이 원칙에서 벗어난 예외로 남아있음(위 참고, §6에도 정리).
 
 **성분 조합 상성 경고** ([backend/interactions.py](backend/interactions.py))도 구현됨:
 - DB 테이블이 아니라 코드에 하드코딩된 정적 리스트(`INGREDIENT_INTERACTIONS`) — 관리자가 수시로 바꿀 데이터가 아니라서 굳이 테이블로 뺄 필요 없다고 판단함. 조합 늘리려면 이 파일에 딕셔너리만 추가하면 됨.
@@ -166,8 +169,11 @@ frontend/               React/Next.js 프론트 (§5, Vercel 배포용, output:'
   app/layout.js/globals.css  루트 레이아웃 + 스타일시트
   lib/api.js              API_BASE(NEXT_PUBLIC_API_BASE 환경변수, 기본값은 Render 배포 URL 하드코딩) + api() fetch 헬퍼
   lib/AppContext.js         전역 상태/액션 — 프로필/화면전환/얼굴 줌/제품/기록/분석/실험 등 대부분의 로직이 여기 모여있음
-  lib/useExternalFactors.js   외부 요인 폼(수면/생리주기/메모/피부상태/PM2.5) 상태+저장 로직 공용 훅 — FactorsPanel(모달)과 TroubleScreen(인라인)이 같이 씀
+  lib/useExternalFactors.js   외부 요인 폼(수면/생리주기/메모/피부상태/PM2.5) 상태+저장 로직 공용 훅 — FactorsPanel(모달)과 RecordScreen(트러블 모드 인라인)이 같이 씀
   components/              화면(screens/)·모달(modals/) 컴포넌트, FaceRecord.js/FaceHistory.js(얼굴 SVG)
+    screens/RecordScreen.js    기록 화면 — 도포/트러블 두 모드를 한 화면에서 토글(§0), 트러블 전용 화면(TroubleScreen.js)은 삭제되고 여기 합쳐짐
+    screens/RecommendScreen.js  제품 추천 전용 화면(§0) — 하단 탭엔 없음, 홈에서만 진입
+    modals/StartExperimentPanel.js  원인 분석 없이 바로 실험 시작(§0)
 
 backend/
   main.py            FastAPI 앱 (API 전용, HTML 서빙 없음), CORS 미들웨어, /api/config, /api/analysis
@@ -212,10 +218,10 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 - **프론트에서 API를 직접 호출하는 새 코드를 짤 때 `X-Profile-Id` 헤더를 빠뜨리지 말 것.** `frontend/lib/api.js`의 `api()` 헬퍼는 자동으로 붙여주지만, PDF 리포트 다운로드처럼 `api()`를 안 거치고 `fetch`를 직접 쓰는 곳(`ReportPanel.js`)은 헤더를 수동으로 넣어야 함 — 브라우저 다운로드는 커스텀 헤더를 못 실어서 이렇게 됨.
 - `backend/`와 `ai/`는 둘 다 리포 루트 기준 top-level 패키지라서, `backend/routers/products.py`에서 `ai.ocr`을 import할 때 상대 임포트(`..`)가 아니라 절대 임포트(`from ai.ocr import ...`)를 씀. 실행은 항상 리포 루트에서 `uvicorn backend.main:app`으로 해야 경로가 맞음.
 - 성분표 사진은 저장하지 않고 OpenAI에 전달해 텍스트만 추출한 뒤 버림(Storage 불필요).
-- `analysis.py`의 `LAG_DAYS`(기본 3일)는 조정 가능한 상수. `experiments.py`의 `EXPERIMENT_DAYS`(기본 3일)는 별개 상수.
-- 분석 결과 모달의 "2주" 문구는 "3일 실험 시작" 버튼(`/api/experiments` 연동)으로 교체 완료.
+- `analysis.py`의 `LAG_DAYS`(기본 3일)는 조정 가능한 상수. `experiments.py`의 `EXPERIMENT_DAYS`(기본값, 실제 실험 기간은 `duration_days`로 실험마다 다름)/`EXPERIMENT_DAY_OPTIONS`(`[3, 7]`)는 별개 상수.
 - `frontend/components/FaceRecord.js`에서 `el.isPointInFill(...)`을 쓸 때 주의: Chromium은 `SVGPoint`만 받고 `DOMPoint`를 거부함(`matrixTransform()`이 반환하는 건 DOMPoint라서 그대로 넘기면 에러). `svg.createSVGPoint()`로 다시 감싸서 넘겨야 함 — 예전 바닐라 버전에서 이 버그 때문에 트러블 위치 찍기가 Chrome에서 조용히 실패했던 적이 있어서(콘솔 에러만 뜨고 API 호출 자체가 안 됨), React 버전에도 이 우회 로직을 그대로 유지함.
-- **스키마 바꿀 때 마이그레이션 도구가 없다는 것 주의.** `Base.metadata.create_all()`은 없는 테이블만 새로 만들고, 이미 존재하는 테이블에 컬럼을 추가하지 않음. `daily_logs.time_slot`/`trouble_dots.type` 추가할 때 로컬 sqlite는 파일 지우고 새로 만들면 되지만, Supabase처럼 실데이터 있는 DB는 `ALTER TABLE ... ADD COLUMN`을 직접 실행해줘야 함(엔진에 raw SQL로). Alembic 같은 마이그레이션 툴은 없음.
+- **스키마 바꿀 때 마이그레이션 도구가 없다는 것 주의.** `Base.metadata.create_all()`은 없는 테이블만 새로 만들고, 이미 존재하는 테이블에 컬럼을 추가하지 않음. `daily_logs.time_slot`/`trouble_dots.type`/`experiments.duration_days` 추가할 때 로컬 sqlite는 파일 지우고 새로 만들면 되지만, Supabase처럼 실데이터 있는 DB는 `ALTER TABLE ... ADD COLUMN`을 직접 실행해줘야 함(엔진에 raw SQL로, `duration_days`는 실제로 이렇게 추가하고 기존 프로필 전부에서 확인함). Alembic 같은 마이그레이션 툴은 없음.
+- **Antigravity(다른 AI 코딩 툴)가 이 리포를 병행 편집 중일 수 있음.** 세션 중간중간 git status에 이 세션이 손 안 댄 파일이 바뀌어 나타나는 경우가 있는데, 그건 실수가 아니라 다른 도구로 작업한 것 — 되돌리지 말고 실제로 켜서 테스트한 뒤(코드만 읽고 넘어가지 말 것) 발견한 진짜 버그만 고치고, 디자인/스코프 판단(예: 특정 기능을 뺄지 채울지)은 사용자에게 확인 없이 바꾸지 말 것. 이 세션에서 이런 식으로 잡은 버그: `AnalysisScreen.js`/`RecordScreen.js`에 `useState`/`useEffect`/`api` import가 빠져서 그 화면을 열거나 특정 기능(AI 사진 판단 등)을 쓰는 순간 크래시 나던 것, `ExpResultPanel.js`가 쓰는 `loadActiveExperiment`가 `AppContext.js`의 공개 값 목록에 없어서 실험 결과 화면을 열면 크래시 나던 것 등.
 - `AIRKOREA_API_KEY`는 data.go.kr이 발급하는 **인코딩된(URL-encoded) 서비스키**를 그대로 써야 함 — [backend/airkorea.py](backend/airkorea.py)가 URL을 문자열로 직접 조립하기 때문에(httpx params로 넘기면 이중 인코딩돼서 깨짐), 키 자체가 이미 `%2F`, `%3D%3D` 같은 percent-encoding을 포함한 형태여야 정상 동작함.
 
 ---
@@ -243,7 +249,8 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 
 | 항목 | 메모 |
 |---|---|
-| 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안이나, 실제로 "바코드→전성분" 매핑까지 제공하는지 확인 필요 |
-| pm25 자동 배치/분석 연동 | 지금은 `sync-pm25`를 수동 호출해야 채워짐. 트러블 발생일 자동 동기화나, `analyze()`에 "트러블 난 날 pm25 평균 vs 클린 기간 평균 비교" 같은 상관관계 로직은 아직 없음 |
+| 바코드 스캔 등록 | **미루는 게 아니라 아예 안 하기로 결정함.** 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안이나, 실제로 "바코드→전성분" 매핑까지 제공하는지 확인 안 됨. 한때 화장대 화면에 등록방법 카드로 있었지만 실제로는 아무 동작도 안 해서 카드째로 제거함(§0) |
+| pm25 자동 배치 동기화 | `analyze()`의 "트러블 난 날 pm25/습도/자외선 평균 vs 클린 기간 평균 비교"는 **이미 구현됨**(`_external_factor_insight()`, §0) — 아직 없는 건 그 값을 채우는 `sync-pm25`/`sync-weather` 호출 자체를 트러블 발생 시 자동으로 트리거하는 것뿐. 지금은 사용자가 수동으로 "날씨 동기화" 버튼을 눌러야 함 |
 | 진짜 인증(비밀번호/세션) | 지금은 `X-Profile-Id` 헤더만으로 프로필을 구분함 — 헤더 값을 알면 남의 데이터도 볼 수 있어서 진짜 보안은 아님. 여러 명이 진짜 비밀로 데이터를 지켜야 하면 그때 세션/비밀번호를 다시 설계 |
 | 진짜 웹푸시 알림 | 지금은 앱을 열었을 때 벨 아이콘에 배지만 뜸(`/api/today-status`). 브라우저 꺼도 오는 푸시는 서비스워커+VAPID+서버 스케줄러 필요 |
+| 홈 화면 "피부 상태" 배지 실데이터 연결 | 지금 "복합성" 고정 텍스트로 떠있음(§0) — 실제 `skin_condition`(트러블 기록 화면에서 입력하는 자가진단)과 연결 안 돼있음 |
