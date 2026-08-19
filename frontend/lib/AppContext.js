@@ -200,9 +200,9 @@ export function AppProvider({ children }) {
   const setScreen = useCallback((name) => {
     setScreenState(name);
     setFocusedParentZone(null);
-    if (name === "home") { loadWeather(); loadRecommendations(); }
+    if (name === "home") { loadWeather(); loadRecommendations(); refreshBell(); }
     if (name === "analysis") loadHistory();
-  }, [loadWeather, loadRecommendations, loadHistory]);
+  }, [loadWeather, loadRecommendations, refreshBell, loadHistory]);
 
   const setMode = useCallback((m) => {
     setModeState(m);
@@ -446,7 +446,7 @@ export function AppProvider({ children }) {
     focusedParentZone, zoomTo, zoomOut,
     currentDate, goPrevDay, goNextDay, goToDate,
     products, selectedProductIds, setSelectedProductIds, toggleProductSelection,
-    suspects, activeExperiment,
+    suspects, activeExperiment, loadActiveExperiment,
     dayData,
     analysisTypeFilter,
     weather, loadWeather,

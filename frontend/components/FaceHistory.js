@@ -16,7 +16,18 @@ export default function FaceHistory({ summary }) {
     <div className="face-card">
       <div className="face-container-wrap">
         <svg id="historyFace" viewBox="0 0 400 440">
+          {/* Neck */}
+          <path d="M165,380 C165,420 155,430 155,430 L245,430 C245,430 235,420 235,380" fill="#FAF9FE" stroke="#D2D0DF" strokeWidth="2" />
+
+          {/* Ears */}
+          <path d="M78,200 C68,200 64,220 68,235 C72,250 78,245 78,245" fill="#FFFFFF" stroke="#D2D0DF" strokeWidth="2" />
+          <path d="M322,200 C332,200 336,220 332,235 C328,250 322,245 322,245" fill="#FFFFFF" stroke="#D2D0DF" strokeWidth="2" />
+
+          {/* Main Face Outline */}
           <path className="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z" />
+
+          {/* Hair Outline */}
+          <path d="M78,190 C78,130 110,68 200,68 C290,68 322,130 322,190 C298,160 270,165 240,152 C220,144 200,160 180,150 C150,135 100,165 78,190 Z" fill="#EBE9F5" stroke="#CBD5E1" strokeWidth="1.5" />
 
           <g className="hzone-group">
             <path className="hzone" data-z="forehead_right" style={hzoneStyle("forehead_right")} d="M104,182 C112,108 152,82 200,82 L200,166 C155,160 120,168 104,182 Z" />
@@ -45,8 +56,22 @@ export default function FaceHistory({ summary }) {
             <path className="hzone" data-z="chin_jaw" style={hzoneStyle("chin_jaw")} d="M151,348 C155,348 175,350 200,350 C225,350 245,348 249,348 C254,356 229,394 200,394 C171,394 146,356 151,348 Z" />
           </g>
 
-          <ellipse className="feat" cx="148" cy="190" rx="15" ry="4" />
-          <ellipse className="feat" cx="252" cy="190" rx="15" ry="4" />
+          {/* Eyebrows */}
+          <path d="M125,180 Q145,172 165,182" fill="none" stroke="#64748B" strokeWidth="3" strokeLinecap="round" />
+          <path d="M235,182 Q255,172 275,180" fill="none" stroke="#64748B" strokeWidth="3" strokeLinecap="round" />
+
+          {/* Detailed Eyes */}
+          <ellipse cx="145" cy="195" rx="14" ry="7" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="2" />
+          <circle cx="145" cy="195" r="5" fill="#1E1B4B" />
+          <ellipse cx="255" cy="195" rx="14" ry="7" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="2" />
+          <circle cx="255" cy="195" r="5" fill="#1E1B4B" />
+
+          {/* Nose Outline */}
+          <path d="M190,195 L190,245 M210,195 L210,245 M190,245 L210,245" fill="none" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
+
+          {/* Lips */}
+          <path d="M170,325 Q200,318 230,325 Q200,340 170,325 Z" fill="#FEE2E2" stroke="#FDA4AF" strokeWidth="2" />
+          <line x1="170" y1="325" x2="230" y2="325" stroke="#FDA4AF" strokeWidth="1.5" />
           <g id="historyDots">
             {dots.map((d, i) => (
               <circle key={i} className={`dot ${d.type}`} cx={d.x} cy={d.y} r="5.5" />

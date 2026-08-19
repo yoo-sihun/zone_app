@@ -380,6 +380,22 @@ body {
 }
 .trouble-prompt-card .linkbtn { color: #B91C1C; text-decoration: underline; }
 
+/* 홈 화면 -> 오늘 기록 안 했을 때 CTA 카드 */
+.today-cta-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--teal-light);
+  border: 1px solid var(--teal-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--teal-dark);
+}
+.today-cta-card .linkbtn { color: var(--teal-dark); text-decoration: underline; }
+
 /* 분석 화면 진입 카드 */
 .analysis-hero {
   text-align: center;
@@ -714,7 +730,7 @@ body {
 .face-svg {
   display: block;
   width: 100%;
-  max-width: 320px;
+  max-width: 100%; /* Fully responsive and larger for easier tapping */
   height: auto;
   margin: 0 auto;
   touch-action: manipulation;
@@ -724,19 +740,19 @@ body {
 
 /* 5 main zoom states mapped to classes */
 .face-svg.focus-forehead {
-  transform: scale(1.8) translateY(60px);
+  transform: scale(2.0) translateY(75px);
 }
 .face-svg.focus-rcheek {
-  transform: scale(1.8) translate(70px, -10px);
+  transform: scale(2.0) translate(80px, -15px);
 }
 .face-svg.focus-lcheek {
-  transform: scale(1.8) translate(-70px, -10px);
+  transform: scale(2.0) translate(-80px, -15px);
 }
 .face-svg.focus-nose {
-  transform: scale(1.8) translate(0px, -20px);
+  transform: scale(2.0) translate(0px, -25px);
 }
 .face-svg.focus-chin {
-  transform: scale(1.8) translateY(-85px);
+  transform: scale(2.0) translateY(-100px);
 }
 
 /* 전체보기 플로팅 버튼 */
@@ -765,35 +781,37 @@ body {
 
 /* SVG 세부 영역 스타일 */
 .outline {
-  fill: none;
-  stroke: #CBD5E1; /* Slate 300 */
+  fill: #FFFFFF; /* Pure White face base */
+  stroke: #D2D0DF;
   stroke-width: 2.5;
 }
 
 .feat {
-  fill: #E2E8F0; /* Eyes */
+  fill: #1E1B4B; /* Pupils */
 }
 
 /* Zoomed Out View Styling: sub-zones within the same parent act as one block */
 .face-svg.zoomed-out .zone {
-  fill: #F1F5F9;
-  stroke: var(--surface);
-  stroke-width: 3;
+  fill: rgba(124, 111, 232, 0.05); /* Translucent lilac so background illustration is visible */
+  stroke: rgba(124, 111, 232, 0.15);
+  stroke-width: 1.5;
   transition: fill 0.25s, stroke-width 0.25s;
   cursor: pointer;
 }
 
 .face-svg.zoomed-out .zone.applied {
-  fill: var(--teal-light);
+  fill: rgba(124, 111, 232, 0.22);
+  stroke: var(--teal);
+  stroke-width: 2;
 }
 
 /* Group-level hover effect when zoomed out */
 .face-svg.zoomed-out .zone-group:hover .zone {
-  fill: #E2E8F0;
+  fill: rgba(124, 111, 232, 0.12);
 }
 
 .face-svg.zoomed-out .zone-group:hover .zone.applied {
-  fill: var(--teal-border);
+  fill: rgba(124, 111, 232, 0.3);
 }
 
 .face-svg.zoomed-out .zone-group .sub-label {
@@ -808,20 +826,20 @@ body {
 
 /* Zoomed In View Styling: only focused zone is active and detailed */
 .face-svg:not(.zoomed-out) .zone-group:not(.focused) {
-  opacity: 0.15;
+  opacity: 0.1;
   pointer-events: none;
 }
 
 .face-svg:not(.zoomed-out) .focused .zone {
-  fill: #F1F5F9;
-  stroke: var(--surface);
-  stroke-width: 2.5;
+  fill: rgba(124, 111, 232, 0.05);
+  stroke: rgba(124, 111, 232, 0.2);
+  stroke-width: 2;
   cursor: pointer;
   transition: fill 0.25s;
 }
 
 .face-svg:not(.zoomed-out) .focused .zone:hover {
-  fill: #E2E8F0;
+  fill: rgba(124, 111, 232, 0.15);
 }
 
 .face-svg:not(.zoomed-out) .focused .zone.applied {
@@ -1574,18 +1592,21 @@ body {
 /* ── 12. 하단 네비게이션 ── */
 .bottomnav {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 12px;
+  width: calc(100% - 24px);
+  max-width: 380px;
   display: flex;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(95, 90, 246, 0.06);
   z-index: 90;
-  height: 52px; /* Compact web-app height */
+  height: 52px;
 }
 
 .navitem {

@@ -13,14 +13,13 @@ export default function TopBar() {
 
   return (
     <header className="topbar">
-      <div className="brand">
-        <span className="brandmark">ZONE</span>
-        <span className="brandsub">{profileName ? `${profileName}님의 스킨케어 기록` : "스킨케어 기록"}</span>
+      <div className="brand" onClick={() => setScreen("home")} style={{ cursor: "pointer" }}>
+        <span className="brandmark" style={{ fontSize: "26px", fontWeight: "900", color: "var(--teal)", letterSpacing: "-0.02em" }}>MUDI</span>
       </div>
       <div className="topactions">
-        <button className="bellbtn" title="오늘 기록 알림" onClick={onBellClick}>
-          <span className="bell-icon">🔔</span>
-          {!bellLogged && <span className="bellbadge" />}
+        <button className="bellbtn" title="오늘 기록 알림" onClick={onBellClick} style={{ background: "none", border: "none", boxShadow: "none", width: "36px", height: "36px" }}>
+          <span className="bell-icon" style={{ fontSize: "20px" }}>🔔</span>
+          {!bellLogged && <span className="bellbadge" style={{ top: "4px", right: "4px" }} />}
         </button>
       </div>
     </header>
