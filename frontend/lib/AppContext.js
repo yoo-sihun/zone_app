@@ -255,13 +255,14 @@ export function AppProvider({ children }) {
         method: "POST",
         body: JSON.stringify({ date: fmt(currentDate), zone, time_slot: slot, product_id: selectedProductId }),
       });
+      pushToast(r.applied ? "저장됐어요 ✓" : "지웠어요", "ok");
       showInteractionWarnings(r.warnings);
       refreshBell();
     } catch (err) {
       alert(err.message);
     }
     await loadDay();
-  }, [selectedProductId, currentDate, slot, flash, showInteractionWarnings, refreshBell, loadDay]);
+  }, [selectedProductId, currentDate, slot, flash, pushToast, showInteractionWarnings, refreshBell, loadDay]);
 
   const placeDot = useCallback(async (zone, x, y) => {
     await api("/api/dots", {
