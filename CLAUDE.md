@@ -35,7 +35,8 @@
 - `POST /api/suspects {ingredient}`로 저장해두면, 이후 `POST /api/products`로 등록하는 제품에 그 성분이 있으면 응답의 `warnings`에 표시됨
 - `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
-- **프론트 연동 완료** — [frontend/static/js/app.js](frontend/static/js/app.js)가 위 API들을 다 씀 (AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트, 외부 요인 폼, PDF 리포트 모달). 지금 디자인은 임시 UI — 피그마 디자인 완성되면 이 화면을 교체/리스타일링할 예정. 헤더의 "⚠ 의심성분/📋 오늘 기록/📄 리포트" 버튼이 각각의 진입점.
+- **프론트 연동 완료** — [frontend/static/js/app.js](frontend/static/js/app.js)가 위 API들을 다 씀 (AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트, 외부 요인 폼, PDF 리포트 모달). 헤더의 "⚠ 의심성분/📋 오늘 기록/📄 리포트" 버튼이 각각의 진입점.
+- **디자인**: 밝은 화이트+틸 톤의 "의료/피부과학" 느낌으로 재작업함(어두운 테마 프로토타입은 버림). 팀 프론트 담당자의 피그마 디자인이 나오면 다시 교체될 수 있음 — `frontend/static/js/app.js`는 API 로직이라 손 안 댔고, `frontend/templates/index.html` + `frontend/static/css/style.css`만 새로 짬. app.js가 참조하는 id/class(`#mApply` `#slotToggle` `.prod` `.zone.applied` `.card.top` 등)는 그대로 유지했으니, 마크업/CSS를 또 바꾸더라도 이 이름들은 유지해야 JS가 안 깨짐.
 
 **성분 조합 상성 경고** ([backend/interactions.py](backend/interactions.py))도 구현됨:
 - DB 테이블이 아니라 코드에 하드코딩된 정적 리스트(`INGREDIENT_INTERACTIONS`) — 관리자가 수시로 바꿀 데이터가 아니라서 굳이 테이블로 뺄 필요 없다고 판단함. 조합 늘리려면 이 파일에 딕셔너리만 추가하면 됨.

@@ -9,10 +9,13 @@
 <body>
 <div class="app">
 
-  <header>
-    <div class="logo">ZONE</div>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brandmark">ZONE</span>
+      <span class="brandsub">부위별 스킨케어 기록</span>
+    </div>
     <div class="iconrow">
-      <button class="iconbtn" id="suspectsBtn" title="의심 성분">⚠ 의심성분</button>
+      <button class="iconbtn" id="suspectsBtn" title="의심 성분">⚠️ 의심성분</button>
       <button class="iconbtn" id="factorsBtn" title="오늘의 외부 요인">📋 오늘 기록</button>
       <button class="iconbtn" id="reportBtn" title="PDF 리포트">📄 리포트</button>
     </div>
@@ -21,18 +24,18 @@
   <div class="expbar" id="expbar" style="display:none"></div>
 
   <div class="datebar">
-    <button id="prev">‹</button>
+    <button id="prev" class="navbtn">‹</button>
     <div class="dlabel" id="dlabel"></div>
-    <button id="next">›</button>
+    <button id="next" class="navbtn">›</button>
   </div>
 
-  <div class="modes">
+  <div class="tabs">
     <button id="mApply" class="on">제품 바른 부위</button>
     <button id="mTrouble">트러블 표시</button>
   </div>
 
-  <div class="slotToggle" id="slotToggle">
-    <button data-slot="am" class="on">☀ 아침</button>
+  <div class="segrow" id="slotToggle">
+    <button data-slot="am" class="on">☀️ 아침</button>
     <button data-slot="pm">🌙 저녁</button>
   </div>
   <div class="typeToggle" id="typeToggle" style="display:none">
@@ -43,7 +46,7 @@
 
   <div class="hint" id="hint"></div>
 
-  <div class="face-wrap">
+  <div class="face-card">
     <svg id="face" viewBox="0 0 400 440">
       <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
 
@@ -69,9 +72,9 @@
   </div>
 
   <div id="applyUI">
-    <div class="sec">
-      <span>오늘 바른 제품 → 발 부위 탭</span>
-      <span class="add" id="addProductBtn">+ 제품 추가</span>
+    <div class="sechead">
+      <h3>오늘 바른 제품</h3>
+      <span class="linkbtn" id="addProductBtn">+ 제품 추가</span>
     </div>
     <div class="prods" id="prods"></div>
     <div class="row">
@@ -81,7 +84,7 @@
   </div>
 
   <div class="row">
-    <button class="btn primary" id="analyze">의심 성분 분석</button>
+    <button class="btn primary" id="analyze">🔍 의심 성분 분석</button>
   </div>
 
 </div>
