@@ -9,7 +9,7 @@
 - DB: `DATABASE_URL` 환경변수가 없으면 로컬 sqlite(`zone.db`) 자동 사용. 지정하면 아무 Postgres(Supabase 포함)든 연결 가능 — 하지만 Supabase Auth/Storage/RLS는 안 씀, 순수 커넥션 문자열로만 사용.
 - 인증: **비밀번호 없는 프로필 선택 방식.** 로그인(이메일/비밀번호) 화면은 없고, 앱 첫 진입 시 프로필 목록에서 고르거나 새로 만듦(넷플릭스 프로필과 비슷). 선택한 프로필 id는 브라우저 `localStorage`에 저장되고, 이후 모든 `/api/*` 요청에 `X-Profile-Id` 헤더로 실려 감(서버는 `backend/deps.py`의 `get_current_profile_id`로 검증). 세션 쿠키/JWT/비밀번호 없음 — 헤더값만으로 "누구 데이터인지" 구분하는 가벼운 방식이라 진짜 보안은 아님(헤더 값을 바꾸면 남의 프로필 데이터에 접근 가능). 데모/개인용 스코프에서 "여러 명이 기록을 안 섞고 쓰는" 용도로만 충분.
 - 프론트: `frontend/`(React/Next.js, `output: 'export'` 정적 내보내기) — Vercel에 정적 사이트로 배포. Jinja 서버 렌더링 없음, 부위 목록 같은 상수 값도 페이지 로드 시 `GET /api/config`를 fetch해서 채움. §5 참고.
-- AI(OpenAI, `gpt-4o-mini`, JSON 응답 모드): 성분표 사진 → 성분 리스트(`ai/ocr.py`, Vision), 트러블 사진 → 유형 추천(`ai/trouble_classify.py`, Vision, 베타), 의심 성분 목록 재정렬(`ai/rank_suspects.py`, 텍스트 전용 — §0 참고). 클라이언트 생성은 `ai/client.py`에 공용화. **`openai` 패키지는 반드시 1.54+ 써야 함** — 1.51.0 등 구버전은 최신 `httpx`(0.28+)와 호환이 안 돼서 `OpenAI()` 생성 시점에 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`로 죽음. 실제로 겪은 문제라 requirements.txt에 `openai==1.59.9`로 고정해둠 — 낮춰서 재현하지 말 것.
+- AI(OpenAI, `gpt-4o-mini`, JSON 응답 모드): 성분표 사진 → 성분 리스트(`ai/ocr.py`, Vision), 트러블 사진 → 유형 추천(`ai/trouble_classify.py`, Vision, 베타), 의심 성분 목록 재정렬(`ai/rank_suspects.py`, 텍스트 전용 — §0 참고), 부위별 관리팁(`ai/zone_tips.py`, 텍스트 전용, 배치 호출 — §0 참고). 클라이언트 생성은 `ai/client.py`에 공용화. **`openai` 패키지는 반드시 1.54+ 써야 함** — 1.51.0 등 구버전은 최신 `httpx`(0.28+)와 호환이 안 돼서 `OpenAI()` 생성 시점에 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`로 죽음. 실제로 겪은 문제라 requirements.txt에 `openai==1.59.9`로 고정해둠 — 낮춰서 재현하지 말 것.
 - 배포: **프론트/백엔드가 분리된 두 서비스.** 백엔드(FastAPI)는 Render(`render.yaml`, 실배포 URL `https://zone-app-9iiw.onrender.com`) — API 전용, HTML을 서빙하지 않음. 프론트(`frontend/`)는 Vercel에 정적 사이트로 배포. 아래 §5 참고.
 
 실행법·환경변수는 [README.md](README.md) 참고.
@@ -28,6 +28,8 @@
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
   5. 응답에 상황별 안내 문구(`message`)도 같이 반환 — 트러블 기록 없음 / 대조군(안 난 부위) 없음 / 겹치는 성분 없음 / 기록 기간이 `LAG_DAYS`보다 짧음 / 정상적으로 N일치 분석함, 5가지 상태를 서버에서 판단해서 문자열로 내려줌. 프론트는 이 문구를 그대로 표시하면 되고, "데이터 충분한지" 판단 로직을 프론트에서 다시 만들 필요 없음.
 - **`suspects` 순위에 AI 재정렬이 한 단계 더 붙음** — `analyze()` 자체는 여전히 순수 통계(빈도순)만 계산하고, `backend/main.py`의 `/api/analysis` 라우트가 그 결과를 `ai/rank_suspects.py`의 `rank_suspects()`에 넘겨서 최종 순서를 정함. 이유: 빈도순으로만 정렬하면 정제수·글리세린처럼 거의 모든 제품에 들어가는 무자극 베이스 성분이 단순히 자주 쓰였다는 이유로 항상 1위로 올라오는 편향이 있음 — AI가 성분 지식(레티놀/AHA·BHA/프래그런스 등 자극 성분은 올리고, 베이스 성분은 내림)으로 이 편향을 보정함. 원본 통계(`count`/`zones`/`time_slots`)는 그대로 유지되고 순서와 `ai_reason`(성분별 한 줄 설명)만 추가/변경됨. OpenAI 호출 실패 시(키 없음, 레이트리밋 등) 예외를 전부 삼키고 원래 빈도순 그대로 폴백함(`ai_ranked: false`) — 핵심 분석 기능이 AI 장애로 죽지 않게 함.
+- **서브존/상위부위 도포 기록 매칭 버그 수정됨** — `analyze()`의 `_related_zones()` 헬퍼로 트러블 부위와 실제 도포 기록 조회 둘 다 "자신 + 상위부위(서브존이면) + 모든 서브존(상위부위면)"을 확장해서 비교함. 예전엔 `bad_zones`/`good_zones` 판정만 이렇게 확장하고, 정작 "그 부위에 뭘 발랐는지" 찾는 매칭은 `DailyLog.zone == 트러블.zone` 완전 일치만 봐서 — 트러블은 서브존에, 도포는 상위부위에(또는 반대로) 기록된 경우 서로 못 찾는 버그가 있었음. 데모 데이터 만들다가 실제로 걸려서 발견·수정함.
+- **외부요인 상관관계 분석**(`_external_factor_insight()`) — `analyze()` 응답의 `external_insight` 필드. 트러블 난 날들의 평균 미세먼지/습도/자외선을 그 외 기록 있는 날(트러블 없던 날) 평균과 비교해서, 15% 이상 차이 나면 한 줄 문구로 알려줌(예: "트러블 난 날은 미세먼지가 평소보다 343% 높았어요"). 양쪽 다 최소 2일치 데이터 필요 — 부족하면 `null`(프론트는 그 항목을 그냥 안 보여줌). 상관관계일 뿐 인과관계 판단 아님.
 - 아직 없는 것: 바코드 스캔 — §6 "향후 아이디어" 참고.
 
 **AM/PM 구분 + 트러블 유형**은 구현됨:
@@ -46,7 +48,7 @@
   - **MY**: 현재 프로필 이름 + 프로필 전환, 외부 요인/의심 성분/리포트 바로가기, **프로필 삭제**(`DELETE /api/profiles/{id}`, 그 프로필의 모든 데이터를 연쇄 삭제하는 되돌릴 수 없는 동작 — 프론트에서 확인창 한 번만 거치므로 실수 삭제 주의)
   - 헤더의 🔔 벨 아이콘: `/api/today-status`로 오늘 기록 여부 확인해서 배지 표시 — 브라우저 꺼도 오는 진짜 푸시 아니고 앱 켰을 때만 보이는 인앱 알림
   - 외부 요인 폼(수면시간/생리주기/메모/오늘의 피부 상태/PM2.5 동기화)은 `frontend/lib/useExternalFactors.js` 훅으로 공용화 — 마이 화면 모달(`FactorsPanel.js`)과 트러블 기록 화면 인라인이 이 훅 하나를 같이 씀, 로직 중복 없음.
-  - **아직 미구현**: 부위별 상태 뱃지(양호/진행중/주의 등) + AI 관리 팁 — 리포트 화면 리다이자인에 있는 기능인데, 임계값(몇 건부터 "주의"인지) 논의가 아직 안 끝나서 보류 중. 다시 논의할 때 참고할 설계안이 메모리에 저장돼 있음.
+  - **리포트 화면**(`ReportPanel.js`, "마이"/"분석" 양쪽에서 진입) — 기간 선택하면 `GET /api/history/zone-status`로 5개 상위 부위별 상태 배지(양호/정상범위/진행중/주의) + AI 관리팁을 카드로 보여주고, 상태가 "양호"가 아닌 부위는 그 부위 기준 제품 추천(`GET /api/products/recommended?zone=`, §0)도 한 줄 붙음. PDF 다운로드 버튼은 그대로 유지(완전히 대체 아니고 같이 씀). 상태 배지 임계값은 `backend/routers/history.py`의 `_STATUS_THRESHOLDS` 상수(트러블 건수: 0=양호/≤2=정상범위/≤5=진행중/그 이상=주의) — 조정 가능.
 - **디자인**: 밝은 화이트+틸 톤의 "의료/피부과학" 느낌. 사용자가 준 레퍼런스(홈 대시보드+하단 탭 구조)를 참고해서 다시 짰지만, 레퍼런스에 있던 별점/제품 사진/추천 엔진/알림 배지 중 실제 데이터가 없는 건(별점, 제품 사진) 그대로 안 넣었음 — 장식용 UI를 만들지 않는다는 원칙. 팀 프론트 담당자의 피그마 디자인이 나오면 다시 교체될 수 있음.
 
 **성분 조합 상성 경고** ([backend/interactions.py](backend/interactions.py))도 구현됨:
@@ -124,13 +126,14 @@ POST   /api/dots                {date, zone, type, x, y}
 POST   /api/dots/classify       (multipart image) → {type: comedonal|papule|pustule|redness|null}  -- AI 추천값, null이면 판단 실패(사용자가 직접 선택해야 함)
 DELETE /api/dots/{id}
 
-GET    /api/analysis            → analyze() 결과 + AI 재정렬(§0). ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots/ai_reason 필드 포함, 응답에 상황별 안내 message + ai_ranked(bool) 필드 포함
+GET    /api/analysis            → analyze() 결과 + AI 재정렬(§0). ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots/ai_reason 필드 포함, 응답에 상황별 안내 message + ai_ranked(bool) + external_insight(string|null, 트러블 난 날 vs 평상시 미세먼지/습도/자외선 비교, §0) 필드 포함
 
 GET    /api/suspects            → [{id, ingredient}]
 POST   /api/suspects            {ingredient} -- 이미 있으면 그냥 기존 것 반환(idempotent)
 DELETE /api/suspects/{id}
 
 GET    /api/history/summary?start=&end= → {start, end, zone_apply_counts: {zone: count}, total_applies, dots: [{date,zone,type,x,y}]}  -- 히스토리 화면(얼굴 시각화)용 집계, 기간 내 부위별 도포 횟수 + 트러블 점 전체 목록
+GET    /api/history/zone-status?start=&end= → [{zone, zone_label, status, count, suspects: [str], tip, ai_tip: bool}, ...]  -- 5개 상위 부위별 상태 배지(양호/정상범위/진행중/주의, §0 임계값) + AI 관리팁(실패 시 고정 문구로 폴백, ai_tip으로 구분). 리포트 화면(`ReportPanel.js`)에서 씀
 
 GET    /api/experiments         → 전체 실험 목록(진행중/완료/중단 다 포함), start_date 내림차순 -- 히스토리 화면 "지난 실험"에 씀
 GET    /api/experiments/active  → 진행 중인 실험 1건 또는 null
@@ -188,10 +191,11 @@ backend/
     history.py             /api/history/summary  (히스토리 화면 얼굴 시각화용 집계)
 
 ai/
-  client.py           OpenAI 클라이언트 생성 공용 함수 (ocr.py/trouble_classify.py/rank_suspects.py가 같이 씀)
+  client.py           OpenAI 클라이언트 생성 공용 함수 (ocr.py/trouble_classify.py/rank_suspects.py/zone_tips.py가 같이 씀)
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
   trouble_classify.py  OpenAI Vision으로 트러블 사진 → 유형 추천 (베타, 사용자가 확인/수정 가능해야 함)
   rank_suspects.py       텍스트 전용 GPT 호출로 의심 성분 순위를 성분 지식 기반으로 재정렬 (§0) — 실패 시 원래 빈도순으로 폴백
+  zone_tips.py             텍스트 전용 GPT 호출로 부위별 관리팁 생성, 5개 부위 한 번에 배치 호출 (§0) — 실패 시 상태별 고정 문구로 폴백
 
 render.yaml           Render Blueprint (build/start command, 헬스체크, env var 목록)
 ```

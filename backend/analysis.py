@@ -3,9 +3,62 @@ from datetime import date as Date, timedelta
 
 from sqlalchemy.orm import Session
 
-from .models import DailyLog, TroubleDot, Product, ZONES, SUB_TO_PARENT, SUB_ZONES
+from .models import DailyLog, TroubleDot, Product, ExternalFactor, ZONES, SUB_TO_PARENT, SUB_ZONES
 
 LAG_DAYS = 3  # 트러블 발생일 기준 며칠 전까지의 사용 기록을 의심하는지
+
+# (필드명, 표시 이름, 단위) — 트러블 난 날 vs 평상시 평균 비교 대상
+_EXTERNAL_FACTOR_FIELDS = [
+    ("pm25", "미세먼지", "㎍/㎥"),
+    ("humidity", "습도", "%"),
+    ("uv_index", "자외선지수", ""),
+]
+
+
+def _external_factor_insight(db: Session, profile_id: int, dots: list[TroubleDot]) -> str | None:
+    """트러블 난 날의 미세먼지/습도/자외선 평균을 그 외 날(기록은 있지만 트러블 없던 날)과 비교.
+    양쪽 다 최소 2일치 데이터가 있어야 비교하고, 차이가 15% 미만이면 의미 없다고 보고 건너뜀.
+    데이터가 부족하면 None(프론트는 이 항목을 아예 안 보여줌)."""
+    trouble_dates = {d.date for d in dots}
+    if not trouble_dates:
+        return None
+    factors = db.query(ExternalFactor).filter(ExternalFactor.profile_id == profile_id).all()
+    if not factors:
+        return None
+
+    lines = []
+    for field, label, unit in _EXTERNAL_FACTOR_FIELDS:
+        trouble_vals = [getattr(f, field) for f in factors if f.date in trouble_dates and getattr(f, field) is not None]
+        clean_vals = [getattr(f, field) for f in factors if f.date not in trouble_dates and getattr(f, field) is not None]
+        if len(trouble_vals) < 2 or len(clean_vals) < 2:
+            continue
+        trouble_avg = sum(trouble_vals) / len(trouble_vals)
+        clean_avg = sum(clean_vals) / len(clean_vals)
+        if clean_avg == 0:
+            continue
+        diff_ratio = (trouble_avg - clean_avg) / clean_avg
+        if abs(diff_ratio) < 0.15:
+            continue
+        direction = "높았어요" if diff_ratio > 0 else "낮았어요"
+        lines.append(
+            f"트러블 난 날은 {label}가 평소보다 {abs(diff_ratio) * 100:.0f}% {direction}"
+            f" (트러블일 평균 {trouble_avg:.1f}{unit} vs 평상시 {clean_avg:.1f}{unit})"
+        )
+
+    return " ".join(lines) if lines else None
+
+
+def _related_zones(zone: str) -> set[str]:
+    """서브존과 상위부위를 서로 연결된 것으로 취급 — 자신 + (서브존이면) 상위부위 + (상위부위면) 모든 서브존.
+    bad_zones 판정과 실제 도포 기록 매칭 둘 다 이 확장을 써야 일관됨(전에는 bad_zones만 확장하고
+    도포 기록 매칭은 정확히 같은 zone 문자열만 봐서, 트러블은 서브존에 · 도포는 상위부위에 기록된
+    경우 서로 못 찾는 버그가 있었음)."""
+    related = {zone}
+    if zone in SUB_TO_PARENT:
+        related.add(SUB_TO_PARENT[zone])
+    if zone in SUB_ZONES:
+        related.update(SUB_ZONES[zone])
+    return related
 
 
 def analyze(db: Session, profile_id: int, dot_type: str | None = None) -> dict:
@@ -20,18 +73,12 @@ def analyze(db: Session, profile_id: int, dot_type: str | None = None) -> dict:
             "events": 0,
             "suspects": [],
             "message": "아직 트러블 기록이 없어요. '트러블 표시'에서 발생 위치를 먼저 남겨주세요 — 비교할 부위가 있어야 원인을 좁힐 수 있어요.",
+            "external_insight": None,
         }
 
-    bad_zones_raw = {d.zone for d in dots}
     bad_zones_expanded = set()
-    for bz in bad_zones_raw:
-        bad_zones_expanded.add(bz)
-        # If it's a sub-zone, its parent is also bad
-        if bz in SUB_TO_PARENT:
-            bad_zones_expanded.add(SUB_TO_PARENT[bz])
-        # If it's a parent zone, all its sub-zones are also bad
-        if bz in SUB_ZONES:
-            bad_zones_expanded.update(SUB_ZONES[bz])
+    for dot in dots:
+        bad_zones_expanded.update(_related_zones(dot.zone))
 
     bad_zones = sorted(list(bad_zones_expanded))
     good_zones = [z for z in ZONES if z not in bad_zones]
@@ -49,7 +96,7 @@ def analyze(db: Session, profile_id: int, dot_type: str | None = None) -> dict:
             db.query(DailyLog)
             .filter(
                 DailyLog.profile_id == profile_id,
-                DailyLog.zone == dot.zone,
+                DailyLog.zone.in_(_related_zones(dot.zone)),
                 DailyLog.date >= window_start,
                 DailyLog.date <= dot.date,
             )
@@ -113,4 +160,5 @@ def analyze(db: Session, profile_id: int, dot_type: str | None = None) -> dict:
         "events": len(dots),
         "suspects": suspects,
         "message": message,
+        "external_insight": _external_factor_insight(db, profile_id, dots),
     }

@@ -36,6 +36,7 @@ export default function AnalysisModal() {
           <h2>{!r.events ? "아직 분석할 게 없습니다" : "겹치는 성분을 못 찾았습니다"}</h2>
           {typeChips}
           <div className="empty">{r.message}</div>
+          {r.external_insight && <div className="sub">🌫️ {r.external_insight}</div>}
           <div className="row"><button className="btn ghost" onClick={closeAnalysisModal}>닫기</button></div>
         </div>
       </div>
@@ -58,6 +59,7 @@ export default function AnalysisModal() {
         {r.ai_ranked && (
           <div className="sub">✨ 성분 특성(자극 가능성)을 고려해 AI가 순서를 조정했어요</div>
         )}
+        {r.external_insight && <div className="sub">🌫️ {r.external_insight}</div>}
         {top.map((s0, i) => (
           <div key={s0.ingredient} className={`card ${i === 0 ? "top" : ""}`}>
             <div className="ing">{s0.ingredient}</div>
