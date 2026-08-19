@@ -612,7 +612,7 @@ body {
 
 .face-svg:not(.zoomed-out) .focused .sub-label {
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: none;
   font-weight: 700;
   fill: #475569;
 }

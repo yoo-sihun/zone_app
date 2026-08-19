@@ -3,199 +3,362 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>ZONE — 부위별 스킨케어 기록</title>
+<title>ZONE — 피부 분석 및 스킨케어 기록</title>
 <link rel="stylesheet" href="/static/css/style.css">
+<!-- Load Pretendard Font -->
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 </head>
 <body>
 <div class="app">
 
+  <!-- ── 상단 바 ── -->
   <header class="topbar">
     <div class="brand">
       <span class="brandmark">ZONE</span>
-      <span class="brandsub" id="brandsub">부위별 스킨케어 기록</span>
+      <span class="brandsub" id="brandsub">스킨케어 기록</span>
     </div>
-    <button class="bellbtn" id="bellBtn" title="오늘 기록 알림">
-      🔔<span class="bellbadge" id="bellBadge" style="display:none"></span>
-    </button>
+    <div class="topactions">
+      <button class="bellbtn" id="bellBtn" title="오늘 기록 알림">
+        <span class="bell-icon">🔔</span>
+        <span class="bellbadge" id="bellBadge" style="display:none"></span>
+      </button>
+    </div>
   </header>
 
+  <!-- ── 진행 중인 실험 배너 ── -->
   <div class="expbar" id="expbar" style="display:none"></div>
 
-  <!-- ── 홈 화면 ── -->
+  <!-- ── 1. 홈 화면 ── -->
   <div class="screen" id="screenHome">
+    <!-- 오늘의 피부 날씨 -->
     <div class="weathercard" id="weatherCard"></div>
 
+    <!-- 오늘 바로 추천 -->
     <div class="sechead">
-      <h3>오늘 바로 추천</h3>
+      <h3>오늘의 스킨케어 추천</h3>
     </div>
-    <div class="recorow" id="recoRow"></div>
+    <div class="recorow-container">
+      <div class="recorow" id="recoRow"></div>
+    </div>
 
+    <!-- 바로가기 메뉴 -->
     <div class="sechead">
-      <h3>바로가기</h3>
+      <h3>빠른 메뉴</h3>
     </div>
     <div class="quicklinks">
-      <button class="qlbtn" id="qlRecord">📝<span>오늘 기록</span></button>
-      <button class="qlbtn" id="qlSuspects">⚠️<span>의심성분</span></button>
-      <button class="qlbtn" id="qlExperiment">🧪<span>실험현황</span></button>
-      <button class="qlbtn" id="qlReport">📄<span>리포트</span></button>
+      <button class="qlbtn" id="qlRecord">
+        <div class="qlbtn-icon">📝</div>
+        <span>기록하기</span>
+      </button>
+      <button class="qlbtn" id="qlSuspects">
+        <div class="qlbtn-icon">⚠️</div>
+        <span>의심 성분</span>
+      </button>
+      <button class="qlbtn" id="qlExperiment">
+        <div class="qlbtn-icon">🧪</div>
+        <span>실험 관리</span>
+      </button>
+      <button class="qlbtn" id="qlReport">
+        <div class="qlbtn-icon">📄</div>
+        <span>리포트</span>
+      </button>
     </div>
   </div>
 
-  <!-- ── 기록 화면 ── -->
+  <!-- ── 2. 기록 화면 ── -->
   <div class="screen" id="screenRecord" style="display:none">
+    <!-- 날짜 내비게이터 -->
     <div class="datebar">
       <button id="prev" class="navbtn">‹</button>
       <div class="dlabel" id="dlabel"></div>
       <button id="next" class="navbtn">›</button>
     </div>
 
+    <!-- 탭 (제품 도포 vs 트러블 표시) -->
     <div class="tabs">
-      <button id="mApply" class="on">제품 바른 부위</button>
-      <button id="mTrouble">트러블 표시</button>
+      <button id="mApply" class="on">✨ 바른 제품</button>
+      <button id="mTrouble">🔴 트러블 표시</button>
     </div>
 
+    <!-- 서브 컨트롤러 -->
     <div class="segrow" id="slotToggle">
-      <button data-slot="am" class="on">☀️ 아침</button>
-      <button data-slot="pm">🌙 저녁</button>
+      <button data-slot="am" class="on">☀️ 아침 스킨케어</button>
+      <button data-slot="pm">🌙 저녁 스킨케어</button>
     </div>
-    <div class="typeToggle" id="typeToggle" style="display:none">
-      {% for t in trouble_types %}
-      <button data-type="{{ t }}" class="{{ 'on' if loop.first else '' }}">{{ trouble_type_labels[t] }}</button>
-      {% endfor %}
-    </div>
-    <label class="ocrbtn" id="troubleAiTrigger" style="display:none">
-      📷 사진으로 AI 유형 판단 (베타)
+    
+    <div class="typeToggle" id="typeToggle" style="display:none"></div>
+
+    <label class="ocrbtn trouble-ai-btn" id="troubleAiTrigger" style="display:none">
+      <span class="btn-icon">📸</span> AI로 사진 분석 유형 판단 (베타)
       <input type="file" accept="image/*" capture="environment" id="troubleAiFile" style="display:none">
     </label>
 
     <div class="hint" id="hint"></div>
 
+    <!-- 얼굴 시각화 카드 -->
     <div class="face-card">
-      <svg id="face" viewBox="0 0 400 440">
-        <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
+      <div class="face-container-wrap">
+        <button id="zoomOutBtn" class="zoom-out-btn" style="display:none"> 전체보기</button>
+        <svg id="face" class="face-svg zoomed-out" viewBox="0 0 400 440">
+          <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
 
-        <path class="zone" data-z="forehead" d="M104,182 C112,108 152,82 200,82 C248,82 288,108 296,182 C255,158 145,158 104,182 Z"/>
-        <text class="zlabel" x="200" y="135">이마</text>
+          <!-- 이마 부위 및 서브존 -->
+          <g class="zone-group" data-mz="forehead">
+            <path class="zone" data-z="forehead_right" d="M104,182 C112,108 152,82 200,82 L200,166 C155,160 120,168 104,182 Z"/>
+            <path class="zone" data-z="forehead_left" d="M200,82 C248,82 288,108 296,182 C280,168 245,160 200,166 Z"/>
+            <text class="zlabel parent-label" x="200" y="135">이마</text>
+            <text class="zlabel sub-label" data-sub="forehead_right" x="145" y="135">오른쪽</text>
+            <text class="zlabel sub-label" data-sub="forehead_left" x="255" y="135">왼쪽</text>
+          </g>
 
-        <path class="zone" data-z="rcheek" d="M101,196 C131,179 161,181 173,197 L173,291 C161,316 121,301 99,266 C93,241 95,216 101,196 Z"/>
-        <text class="zlabel" x="133" y="250">오른볼</text>
+          <!-- 오른볼 부위 및 서브존 -->
+          <g class="zone-group" data-mz="rcheek">
+            <path class="zone" data-z="rcheek_upper" d="M110,210 C130,195 155,195 173,197 L173,245 C150,245 130,235 110,225 Z"/>
+            <path class="zone" data-z="rcheek_lower" d="M110,225 C130,235 150,245 173,245 L173,285 C160,300 145,295 130,280 L115,255 Z"/>
+            <path class="zone" data-z="rcheek_outer" d="M101,196 C105,200 108,205 110,210 L110,225 L115,255 L130,280 C115,285 105,275 99,266 C93,241 95,216 101,196 Z"/>
+            <text class="zlabel parent-label" x="133" y="250">오른볼</text>
+            <text class="zlabel sub-label" data-sub="rcheek_upper" x="145" y="220">상부</text>
+            <text class="zlabel sub-label" data-sub="rcheek_lower" x="145" y="270">하부</text>
+            <text class="zlabel sub-label" data-sub="rcheek_outer" x="112" y="240">바깥</text>
+          </g>
 
-        <path class="zone" data-z="lcheek" d="M299,196 C269,179 239,181 227,197 L227,291 C239,316 279,301 301,266 C307,241 305,216 299,196 Z"/>
-        <text class="zlabel" x="267" y="250">왼볼</text>
+          <!-- 왼볼 부위 및 서브존 -->
+          <g class="zone-group" data-mz="lcheek">
+            <path class="zone" data-z="lcheek_upper" d="M290,210 C270,195 245,195 227,197 L227,245 C250,245 270,235 290,225 Z"/>
+            <path class="zone" data-z="lcheek_lower" d="M290,225 C270,235 250,245 227,245 L227,285 C240,300 255,295 270,280 L285,255 Z"/>
+            <path class="zone" data-z="lcheek_outer" d="M299,196 C295,200 292,205 290,210 L290,225 L285,255 L270,280 C285,285 295,275 301,266 C307,241 305,216 299,196 Z"/>
+            <text class="zlabel parent-label" x="267" y="250">왼볼</text>
+            <text class="zlabel sub-label" data-sub="lcheek_upper" x="255" y="220">상부</text>
+            <text class="zlabel sub-label" data-sub="lcheek_lower" x="255" y="270">하부</text>
+            <text class="zlabel sub-label" data-sub="lcheek_outer" x="288" y="240">바깥</text>
+          </g>
 
-        <path class="zone" data-z="nose" d="M200,186 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 Z"/>
-        <text class="zlabel" x="200" y="252">코</text>
+          <!-- 코 부위 및 서브존 -->
+          <g class="zone-group" data-mz="nose">
+            <path class="zone" data-z="nose_bridge" d="M200,186 L212,245 L188,245 Z"/>
+            <path class="zone" data-z="nose_tip" d="M212,245 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 L188,245 Z"/>
+            <text class="zlabel parent-label" x="200" y="252">코</text>
+            <text class="zlabel sub-label" data-sub="nose_bridge" x="200" y="215">콧등</text>
+            <text class="zlabel sub-label" data-sub="nose_tip" x="200" y="275">코끝</text>
+          </g>
 
-        <path class="zone" data-z="chin" d="M151,316 C171,309 229,309 249,316 C254,356 229,394 200,394 C171,394 146,356 151,316 Z"/>
-        <text class="zlabel" x="200" y="355">턱·입주변</text>
+          <!-- 턱·입주변 부위 및 서브존 -->
+          <g class="zone-group" data-mz="chin">
+            <path class="zone" data-z="chin_lip" d="M151,316 C171,309 229,309 249,316 C245,348 225,350 200,350 C175,350 155,348 151,316 Z"/>
+            <path class="zone" data-z="chin_jaw" d="M151,348 C155,348 175,350 200,350 C225,350 245,348 249,348 C254,356 229,394 200,394 C171,394 146,356 151,348 Z"/>
+            <text class="zlabel parent-label" x="200" y="355">턱·입주변</text>
+            <text class="zlabel sub-label" data-sub="chin_lip" x="200" y="333">입주변</text>
+            <text class="zlabel sub-label" data-sub="chin_jaw" x="200" y="375">턱밑</text>
+          </g>
 
-        <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
-        <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
-        <g id="dots"></g>
-      </svg>
+          <!-- 이목구비 고정 데코 -->
+          <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
+          <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
+          <g id="dots"></g>
+        </svg>
+      </div>
     </div>
 
+    <!-- 세부 영역 조절용 제품 선택 카드 리스트 -->
     <div id="applyUI">
       <div class="sechead">
-        <h3>오늘 바른 제품</h3>
-        <span class="linkbtn" id="addProductBtn">+ 제품 추가</span>
+        <h3>오늘 바른 화장품</h3>
+        <button class="linkbtn" id="addProductBtn">+ 새 제품 등록</button>
       </div>
+      
+      <!-- 세부 조절 패널 안내 (선택된 메인 영역 전용 피드백) -->
+      <div class="subzone-header-card" id="subzoneHeaderCard" style="display:none">
+        <span class="parent-title" id="subzoneParentTitle"></span>
+        <span class="desc">세부 영역을 선택하고 아래 화장품을 체크하세요.</span>
+      </div>
+
       <div class="prods" id="prods"></div>
-      <div class="row">
-        <button class="btn ghost" id="same">이전과 같음</button>
-        <button class="btn ghost" id="clear">전부 지우기</button>
+      
+      <div class="row utility-buttons">
+        <button class="btn ghost" id="same">🔄 어제와 동일하게</button>
+        <button class="btn ghost" id="clear">🗑️ 전체 기록 초기화</button>
       </div>
     </div>
 
-    <div class="row">
-      <button class="btn primary" id="analyze">🔍 의심 성분 분석</button>
+    <div class="row action-buttons">
+      <button class="btn primary main-action" id="analyze">🔍 트러블 원인 의심 성분 분석</button>
     </div>
   </div>
 
-  <!-- ── 히스토리 화면 ── -->
+  <!-- ── 3. 히스토리 화면 ── -->
   <div class="screen" id="screenHistory" style="display:none">
     <div class="segrow" id="historyRange">
       <button data-days="7" class="on">최근 7일</button>
       <button data-days="30">최근 30일</button>
-      <button data-days="0">전체</button>
+      <button data-days="0">전체 기록</button>
     </div>
-    <div class="sub" id="historySummary"></div>
+    
+    <div class="summary-badge-card" id="historySummary"></div>
 
+    <!-- 히스토리용 얼굴 SVG (동일하게 서브존 구분) -->
     <div class="face-card">
-      <svg id="historyFace" viewBox="0 0 400 440">
-        <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
+      <div class="face-container-wrap">
+        <svg id="historyFace" viewBox="0 0 400 440">
+          <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
 
-        <path class="hzone" data-z="forehead" d="M104,182 C112,108 152,82 200,82 C248,82 288,108 296,182 C255,158 145,158 104,182 Z"/>
-        <text class="zlabel" x="200" y="135">이마</text>
+          <!-- 이마 서브존 -->
+          <g class="hzone-group">
+            <path class="hzone" data-z="forehead_right" d="M104,182 C112,108 152,82 200,82 L200,166 C155,160 120,168 104,182 Z"/>
+            <path class="hzone" data-z="forehead_left" d="M200,82 C248,82 288,108 296,182 C280,168 245,160 200,166 Z"/>
+          </g>
 
-        <path class="hzone" data-z="rcheek" d="M101,196 C131,179 161,181 173,197 L173,291 C161,316 121,301 99,266 C93,241 95,216 101,196 Z"/>
-        <text class="zlabel" x="133" y="250">오른볼</text>
+          <!-- 오른볼 서브존 -->
+          <g class="hzone-group">
+            <path class="hzone" data-z="rcheek_upper" d="M110,210 C130,195 155,195 173,197 L173,245 C150,245 130,235 110,225 Z"/>
+            <path class="hzone" data-z="rcheek_lower" d="M110,225 C130,235 150,245 173,245 L173,285 C160,300 145,295 130,280 L115,255 Z"/>
+            <path class="hzone" data-z="rcheek_outer" d="M101,196 C105,200 108,205 110,210 L110,225 L115,255 L130,280 C115,285 105,275 99,266 C93,241 95,216 101,196 Z"/>
+          </g>
 
-        <path class="hzone" data-z="lcheek" d="M299,196 C269,179 239,181 227,197 L227,291 C239,316 279,301 301,266 C307,241 305,216 299,196 Z"/>
-        <text class="zlabel" x="267" y="250">왼볼</text>
+          <!-- 왼볼 서브존 -->
+          <g class="hzone-group">
+            <path class="hzone" data-z="lcheek_upper" d="M290,210 C270,195 245,195 227,197 L227,245 C250,245 270,235 290,225 Z"/>
+            <path class="hzone" data-z="lcheek_lower" d="M290,225 C270,235 250,245 227,245 L227,285 C240,300 255,295 270,280 L285,255 Z"/>
+            <path class="hzone" data-z="lcheek_outer" d="M299,196 C295,200 292,205 290,210 L290,225 L285,255 L270,280 C285,285 295,275 301,266 C307,241 305,216 299,196 Z"/>
+          </g>
 
-        <path class="hzone" data-z="nose" d="M200,186 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 Z"/>
-        <text class="zlabel" x="200" y="252">코</text>
+          <!-- 코 서브존 -->
+          <g class="hzone-group">
+            <path class="hzone" data-z="nose_bridge" d="M200,186 L212,245 L188,245 Z"/>
+            <path class="hzone" data-z="nose_tip" d="M212,245 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 L188,245 Z"/>
+          </g>
 
-        <path class="hzone" data-z="chin" d="M151,316 C171,309 229,309 249,316 C254,356 229,394 200,394 C171,394 146,356 151,316 Z"/>
-        <text class="zlabel" x="200" y="355">턱·입주변</text>
+          <!-- 턱·입주변 서브존 -->
+          <g class="hzone-group">
+            <path class="hzone" data-z="chin_lip" d="M151,316 C171,309 229,309 249,316 C245,348 225,350 200,350 C175,350 155,348 151,316 Z"/>
+            <path class="hzone" data-z="chin_jaw" d="M151,348 C155,348 175,350 200,350 C225,350 245,348 249,348 C254,356 229,394 200,394 C171,394 146,356 151,348 Z"/>
+          </g>
 
-        <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
-        <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
-        <g id="historyDots"></g>
-      </svg>
+          <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
+          <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
+          <g id="historyDots"></g>
+        </svg>
+      </div>
     </div>
 
+    <!-- 범례 -->
     <div class="historylegend">
-      <div class="legenditem"><span class="legendswatch applied"></span>도포 빈도</div>
+      <div class="legenditem"><span class="legendswatch applied"></span>바른 횟수</div>
       <div class="legenditem"><span class="legendswatch comedonal"></span>면포성</div>
       <div class="legenditem"><span class="legendswatch papule"></span>구진</div>
       <div class="legenditem"><span class="legendswatch pustule"></span>화농성</div>
       <div class="legenditem"><span class="legendswatch redness"></span>붉은기</div>
     </div>
 
-    <div class="row"><button class="btn ghost" id="historyReportBtn">📄 PDF로 내보내기</button></div>
+    <div class="row">
+      <button class="btn ghost secondary-action" id="historyReportBtn">📄 PDF 종합 리포트 출력</button>
+    </div>
 
-    <div class="sechead"><h3>지난 실험</h3></div>
+    <!-- 지난 성분 배제 실험 -->
+    <div class="sechead">
+      <h3>지난 성분 배제 실험</h3>
+    </div>
     <div class="explist" id="pastExpList"></div>
   </div>
 
-  <!-- ── 마이 화면 ── -->
+  <!-- ── 4. 마이 화면 ── -->
   <div class="screen" id="screenMy" style="display:none">
     <div class="profilecard">
       <div class="profileavatar">👤</div>
       <div class="profilename" id="myProfileName">-</div>
-      <button class="btn ghost" id="switchProfileBtn">프로필 전환</button>
+      <button class="btn ghost small" id="switchProfileBtn">다른 프로필로 전환</button>
     </div>
-    <div class="sechead"><h3>관리</h3></div>
-    <div class="row"><button class="btn ghost" id="myFactorsBtn">📋 오늘의 외부 요인</button></div>
-    <div class="row"><button class="btn ghost" id="mySuspectsBtn">⚠️ 의심 성분 관리</button></div>
-    <div class="row"><button class="btn ghost" id="myReportBtn">📄 PDF 리포트</button></div>
-    <div class="row"><button class="btn danger" id="deleteProfileBtn">프로필 삭제</button></div>
+    
+    <div class="sechead">
+      <h3>개인 기록 관리</h3>
+    </div>
+    <div class="menu-list">
+      <button class="menu-item" id="myFactorsBtn">
+        <span class="menu-icon">📋</span>
+        <span class="menu-title">오늘의 외부 요인 (수면/생리/메모)</span>
+        <span class="menu-arrow">›</span>
+      </button>
+      <button class="menu-item" id="mySuspectsBtn">
+        <span class="menu-icon">⚠️</span>
+        <span class="menu-title">의심 성분 관리</span>
+        <span class="menu-arrow">›</span>
+      </button>
+      <button class="menu-item" id="myReportBtn">
+        <span class="menu-icon">📄</span>
+        <span class="menu-title">PDF 리포트 생성 및 다운로드</span>
+        <span class="menu-arrow">›</span>
+      </button>
+    </div>
+
+    <div class="danger-zone">
+      <div class="sechead">
+        <h3 class="danger-title">위험 설정</h3>
+      </div>
+      <button class="btn danger" id="deleteProfileBtn">❌ 현재 프로필 데이터 영구 삭제</button>
+    </div>
   </div>
 
+  <!-- ── 하단 탭 내비게이션 ── -->
   <nav class="bottomnav">
-    <button class="navitem on" data-screen="home">🏠<span>홈</span></button>
-    <button class="navitem" data-screen="history">🗂️<span>히스토리</span></button>
-    <button class="navitem navadd" data-screen="record">＋</button>
-    <button class="navitem" data-screen="my">👤<span>마이</span></button>
+    <button class="navitem on" data-screen="home">
+      <span class="navicon">🏠</span>
+      <span>홈</span>
+    </button>
+    <button class="navitem" data-screen="history">
+      <span class="navicon">🗂️</span>
+      <span>히스토리</span>
+    </button>
+    <button class="navitem navadd" data-screen="record">
+      <span class="navicon">+</span>
+    </button>
+    <button class="navitem" data-screen="my">
+      <span class="navicon">👤</span>
+      <span>마이</span>
+    </button>
   </nav>
 
 </div>
 
+<!-- ── bottom drawer 형태의 모달 구조 ── -->
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="modal" id="productModal"><div class="sheet" id="productSheet"></div></div>
 <div class="modal" id="miscModal"><div class="sheet" id="miscSheet"></div></div>
 <div class="modal" id="profileModal"><div class="sheet" id="profileSheet"></div></div>
+
+<!-- 토스트 알림창 -->
 <div class="toastwrap" id="toastwrap"></div>
 
 <script>
-window.__ZONES = {{ zones | tojson }};
-window.__ZONE_LABELS = {{ zone_labels | tojson }};
-window.__TROUBLE_TYPES = {{ trouble_types | tojson }};
-window.__TROUBLE_TYPE_LABELS = {{ trouble_type_labels | tojson }};
-window.__EXPERIMENT_DAYS = {{ experiment_days | tojson }};
+// 백엔드(Render)와 프론트가 같은 오리진에서 서빙되면 상대경로면 충분하지만,
+// 프론트를 Vercel 등 다른 오리진에 정적 배포한 경우엔 백엔드 전체 URL이 필요함.
+// 같은 오리진(로컬 개발, 또는 지금처럼 FastAPI가 직접 서빙하는 경우)에서는 빈 문자열(상대경로) 사용.
+window.__API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.endsWith('.onrender.com'))
+  ? ''
+  : 'https://zone-app-9iiw.onrender.com';
+
+(async function bootstrap(){
+  const res = await fetch(window.__API_BASE + '/api/config');
+  const cfg = await res.json();
+  window.__ZONES = cfg.zones;
+  window.__ZONE_LABELS = cfg.zone_labels;
+  window.__SUB_ZONES = cfg.sub_zones;
+  window.__SUB_TO_PARENT = cfg.sub_to_parent;
+  window.__TROUBLE_TYPES = cfg.trouble_types;
+  window.__TROUBLE_TYPE_LABELS = cfg.trouble_type_labels;
+  window.__EXPERIMENT_DAYS = cfg.experiment_days;
+
+  const typeToggle = document.getElementById('typeToggle');
+  cfg.trouble_types.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.dataset.type = t;
+    if (i === 0) btn.classList.add('on');
+    btn.textContent = cfg.trouble_type_labels[t];
+    typeToggle.appendChild(btn);
+  });
+
+  const script = document.createElement('script');
+  script.src = '/static/js/app.js';
+  document.body.appendChild(script);
+})();
 </script>
-<script src="/static/js/app.js"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@ from datetime import date as Date, timedelta
 
 from sqlalchemy.orm import Session
 
-from .models import DailyLog, TroubleDot, Product, ZONES
+from .models import DailyLog, TroubleDot, Product, ZONES, SUB_TO_PARENT, SUB_ZONES
 
 LAG_DAYS = 3  # 트러블 발생일 기준 며칠 전까지의 사용 기록을 의심하는지
 
@@ -22,7 +22,18 @@ def analyze(db: Session, profile_id: int, dot_type: str | None = None) -> dict:
             "message": "아직 트러블 기록이 없어요. '트러블 표시'에서 발생 위치를 먼저 남겨주세요 — 비교할 부위가 있어야 원인을 좁힐 수 있어요.",
         }
 
-    bad_zones = sorted({d.zone for d in dots})
+    bad_zones_raw = {d.zone for d in dots}
+    bad_zones_expanded = set()
+    for bz in bad_zones_raw:
+        bad_zones_expanded.add(bz)
+        # If it's a sub-zone, its parent is also bad
+        if bz in SUB_TO_PARENT:
+            bad_zones_expanded.add(SUB_TO_PARENT[bz])
+        # If it's a parent zone, all its sub-zones are also bad
+        if bz in SUB_ZONES:
+            bad_zones_expanded.update(SUB_ZONES[bz])
+
+    bad_zones = sorted(list(bad_zones_expanded))
     good_zones = [z for z in ZONES if z not in bad_zones]
 
     products = {p.id: p for p in db.query(Product).filter(Product.profile_id == profile_id).all()}

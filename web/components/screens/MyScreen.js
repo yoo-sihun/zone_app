@@ -1,0 +1,53 @@
+"use client";
+
+import { useApp } from "@/lib/AppContext";
+
+export default function MyScreen() {
+  const {
+    profileName, openProfilePicker, openFactorsModal, openSuspectsModal,
+    openReportModal, deleteCurrentProfile,
+  } = useApp();
+
+  async function onDelete() {
+    if (!confirm(`"${profileName}" 프로필을 삭제할까요?\n제품·기록·트러블 등 모든 데이터가 함께 삭제되고 되돌릴 수 없습니다.`)) return;
+    try {
+      await deleteCurrentProfile();
+    } catch (e) {
+      alert("삭제에 실패했어요");
+    }
+  }
+
+  return (
+    <div className="screen" id="screenMy">
+      <div className="profilecard">
+        <div className="profileavatar">👤</div>
+        <div className="profilename">{profileName || "-"}</div>
+        <button className="btn ghost small" onClick={() => openProfilePicker(true)}>다른 프로필로 전환</button>
+      </div>
+
+      <div className="sechead"><h3>개인 기록 관리</h3></div>
+      <div className="menu-list">
+        <button className="menu-item" onClick={() => openFactorsModal()}>
+          <span className="menu-icon">📋</span>
+          <span className="menu-title">오늘의 외부 요인 (수면/생리/메모)</span>
+          <span className="menu-arrow">›</span>
+        </button>
+        <button className="menu-item" onClick={() => openSuspectsModal()}>
+          <span className="menu-icon">⚠️</span>
+          <span className="menu-title">의심 성분 관리</span>
+          <span className="menu-arrow">›</span>
+        </button>
+        <button className="menu-item" onClick={() => openReportModal()}>
+          <span className="menu-icon">📄</span>
+          <span className="menu-title">PDF 리포트 생성 및 다운로드</span>
+          <span className="menu-arrow">›</span>
+        </button>
+      </div>
+
+      <div className="danger-zone">
+        <div className="sechead"><h3 className="danger-title">위험 설정</h3></div>
+        <button className="btn danger" onClick={onDelete}>❌ 현재 프로필 데이터 영구 삭제</button>
+      </div>
+    </div>
+  );
+}

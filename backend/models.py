@@ -2,13 +2,55 @@ from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, JSON
 
 from .database import Base
 
-ZONES = ["forehead", "rcheek", "lcheek", "nose", "chin"]
+ZONES = [
+    "forehead", "rcheek", "lcheek", "nose", "chin",
+    "forehead_left", "forehead_right",
+    "rcheek_upper", "rcheek_lower", "rcheek_outer",
+    "lcheek_upper", "lcheek_lower", "lcheek_outer",
+    "nose_bridge", "nose_tip",
+    "chin_lip", "chin_jaw"
+]
 ZONE_LABELS = {
     "forehead": "이마",
     "rcheek": "오른볼",
     "lcheek": "왼볼",
     "nose": "코",
     "chin": "턱·입주변",
+    "forehead_left": "이마 왼쪽",
+    "forehead_right": "이마 오른쪽",
+    "rcheek_upper": "오른볼 상부",
+    "rcheek_lower": "오른볼 하부",
+    "rcheek_outer": "오른볼 바깥쪽",
+    "lcheek_upper": "왼볼 상부",
+    "lcheek_lower": "왼볼 하부",
+    "lcheek_outer": "왼볼 바깥쪽",
+    "nose_bridge": "콧등",
+    "nose_tip": "코끝",
+    "chin_lip": "입주변",
+    "chin_jaw": "턱밑",
+}
+
+SUB_ZONES = {
+    "forehead": ["forehead_left", "forehead_right"],
+    "rcheek": ["rcheek_upper", "rcheek_lower", "rcheek_outer"],
+    "lcheek": ["lcheek_upper", "lcheek_lower", "lcheek_outer"],
+    "nose": ["nose_bridge", "nose_tip"],
+    "chin": ["chin_lip", "chin_jaw"],
+}
+
+SUB_TO_PARENT = {
+    "forehead_left": "forehead",
+    "forehead_right": "forehead",
+    "rcheek_upper": "rcheek",
+    "rcheek_lower": "rcheek",
+    "rcheek_outer": "rcheek",
+    "lcheek_upper": "lcheek",
+    "lcheek_lower": "lcheek",
+    "lcheek_outer": "lcheek",
+    "nose_bridge": "nose",
+    "nose_tip": "nose",
+    "chin_lip": "chin",
+    "chin_jaw": "chin",
 }
 
 TIME_SLOTS = ["am", "pm"]

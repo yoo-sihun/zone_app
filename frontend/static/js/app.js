@@ -1,5 +1,8 @@
+const API_BASE = window.__API_BASE || '';
 const ZONES = window.__ZONES;
 const ZONE_LABELS = window.__ZONE_LABELS;
+const SUB_ZONES = window.__SUB_ZONES;
+const SUB_TO_PARENT = window.__SUB_TO_PARENT;
 const TROUBLE_TYPES = window.__TROUBLE_TYPES;
 const TROUBLE_TYPE_LABELS = window.__TROUBLE_TYPE_LABELS;
 const EXPERIMENT_DAYS = window.__EXPERIMENT_DAYS;
@@ -19,6 +22,7 @@ let selectedProductId = null;
 let dayData = { log: {}, dots: [] };
 let analysisTypeFilter = null;
 let currentScreen = 'home';
+let focusedParentZone = null;
 
 let currentProfileId = localStorage.getItem('zone_profile_id') || null;
 let currentProfileName = localStorage.getItem('zone_profile_name') || '';
@@ -29,11 +33,61 @@ function fmt(d){
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+function zoomOut() {
+  focusedParentZone = null;
+  const face = $('#face');
+  if (face) {
+    face.classList.add('zoomed-out');
+    face.classList.forEach(cls => {
+      if (cls.startsWith('focus-')) face.classList.remove(cls);
+    });
+  }
+  document.querySelectorAll('.zone-group').forEach(g => g.classList.remove('focused'));
+  
+  const zoomBtn = $('#zoomOutBtn');
+  if (zoomBtn) zoomBtn.style.display = 'none';
+  
+  const headerCard = $('#subzoneHeaderCard');
+  if (headerCard) headerCard.style.display = 'none';
+  
+  renderFace();
+  setMode(mode);
+}
+
+function zoomTo(parentZone) {
+  focusedParentZone = parentZone;
+  const face = $('#face');
+  if (face) {
+    face.classList.remove('zoomed-out');
+    face.classList.forEach(cls => {
+      if (cls.startsWith('focus-')) face.classList.remove(cls);
+    });
+    face.classList.add(`focus-${parentZone}`);
+  }
+  
+  document.querySelectorAll('.zone-group').forEach(g => {
+    g.classList.toggle('focused', g.dataset.mz === parentZone);
+  });
+  
+  const zoomBtn = $('#zoomOutBtn');
+  if (zoomBtn) zoomBtn.style.display = 'block';
+  
+  const headerCard = $('#subzoneHeaderCard');
+  if (headerCard) {
+    headerCard.style.display = 'flex';
+    const parentLabel = ZONE_LABELS[parentZone] || parentZone;
+    $('#subzoneParentTitle').textContent = parentLabel;
+  }
+  
+  renderFace();
+  setMode(mode);
+}
+
 async function api(path, opts = {}){
   const headers = {};
   if(opts.body && !(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   if(currentProfileId) headers['X-Profile-Id'] = currentProfileId;
-  const res = await fetch(path, { ...opts, headers });
+  const res = await fetch(API_BASE + path, { ...opts, headers });
   if(!res.ok){
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || `요청 실패 (${res.status})`);
@@ -60,7 +114,7 @@ function showInteractionWarnings(warnings){
 async function openProfilePicker(allowCancel){
   const s = $('#profileSheet');
   let list = [];
-  try { list = await fetch('/api/profiles').then(r => r.json()); } catch(e) { list = []; }
+  try { list = await fetch(API_BASE + '/api/profiles').then(r => r.json()); } catch(e) { list = []; }
   renderProfilePicker(list, allowCancel);
   $('#profileModal').classList.add('show');
 }
@@ -88,7 +142,7 @@ function renderProfilePicker(list, allowCancel){
   $('#createProfileBtn').onclick = async () => {
     const name = $('#newProfileInput').value.trim();
     if(!name){ alert('이름을 입력해주세요'); return; }
-    const p = await fetch('/api/profiles', {
+    const p = await fetch(API_BASE + '/api/profiles', {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }),
     }).then(r => r.json());
     selectProfile(p.id, p.name);
@@ -110,6 +164,7 @@ function showScreen(name){
   document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
   $(`#screen${name.charAt(0).toUpperCase()}${name.slice(1)}`).style.display = '';
   document.querySelectorAll('.navitem[data-screen]').forEach(el => el.classList.toggle('on', el.dataset.screen === name));
+  zoomOut();
   if(name === 'home') loadHome();
   if(name === 'my') loadMy();
   if(name === 'history') loadHistory();
@@ -258,7 +313,7 @@ $('#myReportBtn').onclick = () => openReportModal();
 $('#deleteProfileBtn').onclick = async () => {
   if(!confirm(`"${currentProfileName}" 프로필을 삭제할까요?\n제품·기록·트러블 등 모든 데이터가 함께 삭제되고 되돌릴 수 없습니다.`)) return;
   try {
-    await fetch(`/api/profiles/${currentProfileId}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/profiles/${currentProfileId}`, { method: 'DELETE' });
     localStorage.removeItem('zone_profile_id');
     localStorage.removeItem('zone_profile_name');
     currentProfileId = null;
@@ -294,11 +349,13 @@ function dlabel(){
 }
 $('#prev').onclick = async () => {
   currentDate.setDate(currentDate.getDate() - 1);
+  zoomOut();
   await loadDay(); dlabel();
 };
 $('#next').onclick = async () => {
   if(currentDate >= today) return;
   currentDate.setDate(currentDate.getDate() + 1);
+  zoomOut();
   await loadDay(); dlabel();
 };
 
@@ -310,13 +367,25 @@ function setMode(m){
   $('#mTrouble').classList.toggle('trouble', m==='trouble');
   $('#applyUI').style.display = m==='apply' ? '' : 'none';
   $('#slotToggle').style.display = m==='apply' ? 'flex' : 'none';
+  
+  // Show header card if apply mode is active and we have focused parent zone
+  const subzoneHeader = $('#subzoneHeaderCard');
+  if (subzoneHeader) {
+    subzoneHeader.style.display = (m === 'apply' && focusedParentZone) ? 'flex' : 'none';
+  }
+
   $('#typeToggle').style.display = m==='trouble' ? 'flex' : 'none';
-  $('#troubleAiTrigger').style.display = m==='trouble' ? 'block' : 'none';
+  $('#troubleAiTrigger').style.display = m==='trouble' ? 'flex' : 'none';
+  
   $('#hint').textContent = m==='apply'
     ? (selectedProductId
-        ? `"${products.find(p=>p.id===selectedProductId)?.name}" → 바른 부위를 탭하세요 (${currentSlot==='am'?'아침':'저녁'})`
-        : '아래에서 제품을 고른 뒤 부위를 탭하세요')
-    : `뾰루지가 난 자리를 얼굴 위에서 자유롭게 탭하세요 (${TROUBLE_TYPE_LABELS[currentType]} · 다시 탭하면 삭제)`;
+        ? (focusedParentZone 
+            ? `세부 영역(${ZONE_LABELS[focusedParentZone]})을 탭하여 제품을 바르거나 지우세요.`
+            : `얼굴 부위를 탭하면 세부 영역이 확대됩니다.`)
+        : '아래에서 제품을 선택한 후 얼굴을 탭해 상세 부위를 지정하세요.')
+    : (focusedParentZone
+        ? `뾰루지가 난 부위(${ZONE_LABELS[focusedParentZone]})를 얼굴 위에서 직접 탭하세요 (다시 탭하면 삭제)`
+        : '얼굴 부위를 탭하여 해당 영역을 확대한 뒤 트러블 위치를 지정하세요.');
 }
 $('#mApply').onclick = () => setMode('apply');
 $('#mTrouble').onclick = () => setMode('trouble');
@@ -430,45 +499,83 @@ function renderFace(){
   });
 }
 
-document.querySelectorAll('.zone').forEach(z => {
-  z.addEventListener('click', async e => {
-    if(currentScreen !== 'record' || mode !== 'apply') return;
-    e.stopPropagation();
-    if(!selectedProductId){ flash('먼저 제품을 고르세요'); return; }
-    try {
-      const r = await api('/api/log/toggle', {
-        method: 'POST',
-        body: JSON.stringify({
-          date: fmt(currentDate), zone: z.dataset.z, time_slot: currentSlot, product_id: selectedProductId,
-        }),
-      });
-      showInteractionWarnings(r.warnings);
-      refreshBell();
-    } catch(err){
-      alert(err.message);
+// Unify all zone/SVG click events into a single smart delegated event listener
+svg.addEventListener('click', async e => {
+  if (currentScreen !== 'record') return;
+  
+  // 1. Identify which zone path was clicked (using direct event target or isPointInFill)
+  let clickedZone = null;
+  const target = e.target;
+  if (target.classList.contains('zone')) {
+    clickedZone = target.dataset.z;
+  }
+  
+  if (!clickedZone) {
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const testPt = svg.createSVGPoint();
+    testPt.x = p.x; testPt.y = p.y;
+    for (const el of document.querySelectorAll('.zone')) {
+      if (el.isPointInFill(testPt)) { clickedZone = el.dataset.z; break; }
     }
-    await loadDay();
-  });
+  }
+  
+  if (!clickedZone) {
+    // Clicked outside any active zones
+    return;
+  }
+  
+  const parentZone = SUB_TO_PARENT[clickedZone] || clickedZone;
+  
+  // Stage 1 Zoom check: if face is zoomed out, click zooms in
+  if (svg.classList.contains('zoomed-out')) {
+    zoomTo(parentZone);
+    return;
+  }
+  
+  // Stage 2 Focused actions
+  if (focusedParentZone === parentZone) {
+    if (mode === 'apply') {
+      e.stopPropagation();
+      if (!selectedProductId) { flash('먼저 제품을 고르세요'); return; }
+      try {
+        const r = await api('/api/log/toggle', {
+          method: 'POST',
+          body: JSON.stringify({
+            date: fmt(currentDate), zone: clickedZone, time_slot: currentSlot, product_id: selectedProductId,
+          }),
+        });
+        showInteractionWarnings(r.warnings);
+        refreshBell();
+      } catch (err) {
+        alert(err.message);
+      }
+      await loadDay();
+    } else if (mode === 'trouble') {
+      // Place a trouble dot at the exact click coordinate inside the sub-zone
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX; pt.y = e.clientY;
+      const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      await api('/api/dots', {
+        method: 'POST',
+        body: JSON.stringify({ date: fmt(currentDate), zone: clickedZone, type: currentType, x: p.x, y: p.y }),
+      });
+      await loadDay();
+    }
+  } else {
+    // Clicked outside currently focused zone, shift focus to new zone
+    zoomTo(parentZone);
+  }
 });
 
-svg.addEventListener('click', async e => {
-  if(currentScreen !== 'record' || mode !== 'trouble') return;
-  const pt = svg.createSVGPoint();
-  pt.x = e.clientX; pt.y = e.clientY;
-  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
-  const testPt = svg.createSVGPoint(); // isPointInFill requires an SVGPoint, not the DOMPoint matrixTransform() returns
-  testPt.x = p.x; testPt.y = p.y;
-  let zone = null;
-  for(const el of document.querySelectorAll('.zone')){
-    if(el.isPointInFill(testPt)){ zone = el.dataset.z; break; }
-  }
-  if(!zone){ flash('얼굴 영역 안을 탭해주세요'); return; }
-  await api('/api/dots', {
-    method: 'POST',
-    body: JSON.stringify({ date: fmt(currentDate), zone, type: currentType, x: p.x, y: p.y }),
-  });
-  await loadDay();
-});
+const zoomOutBtn = $('#zoomOutBtn');
+if (zoomOutBtn) {
+  zoomOutBtn.onclick = (e) => {
+    e.stopPropagation();
+    zoomOut();
+  };
+}
 
 let ft;
 function flash(msg){
@@ -811,7 +918,7 @@ function openReportModal(){
     const start = $('#rStart').value, end = $('#rEnd').value;
     if(!start || !end){ alert('기간을 선택해주세요'); return; }
     try {
-      const res = await fetch(`/api/reports/pdf?start=${start}&end=${end}`, {
+      const res = await fetch(`${API_BASE}/api/reports/pdf?start=${start}&end=${end}`, {
         headers: { 'X-Profile-Id': currentProfileId },
       });
       if(!res.ok) throw new Error('리포트 생성 실패');
@@ -847,7 +954,7 @@ async function startApp(){
   if(currentProfileId){
     // 저장된 프로필이 실제로 존재하는지 확인
     try {
-      const list = await fetch('/api/profiles').then(r => r.json());
+      const list = await fetch(API_BASE + '/api/profiles').then(r => r.json());
       if(list.some(p => String(p.id) === currentProfileId)){
         await startApp();
         return;

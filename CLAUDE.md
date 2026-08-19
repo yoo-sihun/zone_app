@@ -8,13 +8,13 @@
 - 백엔드: FastAPI, SQLAlchemy ORM
 - DB: `DATABASE_URL` 환경변수가 없으면 로컬 sqlite(`zone.db`) 자동 사용. 지정하면 아무 Postgres(Supabase 포함)든 연결 가능 — 하지만 Supabase Auth/Storage/RLS는 안 씀, 순수 커넥션 문자열로만 사용.
 - 인증: **비밀번호 없는 프로필 선택 방식.** 로그인(이메일/비밀번호) 화면은 없고, 앱 첫 진입 시 프로필 목록에서 고르거나 새로 만듦(넷플릭스 프로필과 비슷). 선택한 프로필 id는 브라우저 `localStorage`에 저장되고, 이후 모든 `/api/*` 요청에 `X-Profile-Id` 헤더로 실려 감(서버는 `backend/deps.py`의 `get_current_profile_id`로 검증). 세션 쿠키/JWT/비밀번호 없음 — 헤더값만으로 "누구 데이터인지" 구분하는 가벼운 방식이라 진짜 보안은 아님(헤더 값을 바꾸면 남의 프로필 데이터에 접근 가능). 데모/개인용 스코프에서 "여러 명이 기록을 안 섞고 쓰는" 용도로만 충분.
-- 프론트: FastAPI가 Jinja2 템플릿을 직접 서빙(`frontend/templates`) + 바닐라 JS(`frontend/static`). 별도 Vercel/Next.js 없음.
+- 프론트: **두 개가 공존함.** ① `frontend/`(바닐라 JS + Jinja 템플릿) — FastAPI가 직접 서빙, `https://zone-app-9iiw.onrender.com`에서 지금도 이걸 보여줌. ② `web/`(React/Next.js, `output: 'export'` 정적 내보내기) — Vercel에 별도 배포하는 새 프론트, §5 참고. 둘 다 같은 백엔드 API(`X-Profile-Id` 헤더, `GET /api/config`)를 그대로 씀.
 - AI(OpenAI Vision, `gpt-4o-mini`, JSON 응답 모드): 성분표 사진 → 성분 리스트(`ai/ocr.py`), 트러블 사진 → 유형 추천(`ai/trouble_classify.py`, 베타). 클라이언트 생성은 `ai/client.py`에 공용화. **`openai` 패키지는 반드시 1.54+ 써야 함** — 1.51.0 등 구버전은 최신 `httpx`(0.28+)와 호환이 안 돼서 `OpenAI()` 생성 시점에 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`로 죽음. 실제로 겪은 문제라 requirements.txt에 `openai==1.59.9`로 고정해둠 — 낮춰서 재현하지 말 것.
-- 배포: Render 단일 서비스 (`render.yaml`).
+- 배포: 백엔드(FastAPI)는 Render 단일 서비스(`render.yaml`, 실배포 URL `https://zone-app-9iiw.onrender.com`). React 프론트(`web/`)는 Vercel에 별도 정적 배포 — Render가 `frontend/`를 서빙하는 기존 방식을 대체하는 게 아니라 추가 옵션. 아래 §5 참고.
 
 실행법·환경변수는 [README.md](README.md) 참고.
 
-**폴더 구조**: 팀 분업(프론트/백엔드/AI) 기준으로 `frontend/` `backend/` `ai/` 세 폴더로 나눠져 있지만, 이건 코드 위치만 나눈 것이고 **배포되는 앱은 여전히 하나**임 — `backend/main.py`의 FastAPI가 `frontend/`의 템플릿·정적 파일을 직접 서빙하고, `backend/routers/products.py`가 `ai/ocr.py`를 import해서 씀. 별도 서버로 쪼개져 있지 않으므로 "프론트 따로 배포"같은 걸 시도하면 안 됨.
+**폴더 구조**: 팀 분업(프론트/백엔드/AI) 기준으로 `frontend/` `backend/` `ai/` 세 폴더로 나눠져 있었고, 여기에 React 프론트 `web/`이 추가됨 — `backend/main.py`의 FastAPI가 `frontend/`의 템플릿·정적 파일을 여전히 직접 서빙하고, `backend/routers/products.py`가 `ai/ocr.py`를 import해서 씀. **`web/`(React/Next.js)을 Vercel에 별도 정적 배포하는 것도 지원함**(§5) — 부위 목록 같은 상수 값은 `GET /api/config`를 fetch해서 채움. 이건 추가 배포 옵션이지 백엔드가 분리된 건 아님 — API 로직은 여전히 Render의 FastAPI 하나에만 있고, Vercel 쪽엔 서버 코드가 전혀 없음(순수 정적 파일만).
 
 ---
 
@@ -137,6 +137,8 @@ POST   /api/external-factors/{date}/sync-pm25 → 에어코리아에서 그 날�
 POST   /api/external-factors/{date}/sync-weather → 기상청 습도/자외선 연동 스캐폴드, 아직 501(KMA_API_KEY 없음/미구현) 반환
 
 GET    /api/reports/pdf?start=&end= → PDF 파일 스트리밍 다운로드 (기간 내 트러블/도포 히스토리/의심 성분/외부 요인 요약)
+
+GET    /api/config              → {zones, zone_labels, sub_zones, sub_to_parent, trouble_types, trouble_type_labels, experiment_days}  -- 헤더 불필요. 원래 `/` 페이지 렌더링할 때 Jinja가 HTML에 직접 박아넣던 상수 값들을 API로도 노출한 것 — 프론트가 페이지 로드 시 이걸 fetch해서 채움(§5 Vercel 분리 배포 때문에 추가됨)
 ```
 
 `/`가 유일한 페이지 라우트 — 프론트가 SPA처럼 화면(홈/기록/마이)을 JS로 전환함, 서버 라우트가 여러 개가 아님.
@@ -146,12 +148,19 @@ GET    /api/reports/pdf?start=&end= → PDF 파일 스트리밍 다운로드 (�
 ## 3. 파일 구조
 
 ```
-frontend/
-  templates/          index.html (Jinja2) — 로그인 페이지 없음
+frontend/               바닐라 JS + Jinja 템플릿 프론트. Render가 지금도 직접 서빙 중(§0 실제 배포 URL 참고)
+  templates/          index.html — 로그인 페이지 없음
   static/             css/js
 
+web/                    React/Next.js 프론트 (§5, Vercel 별도 배포용, output:'export' 정적 내보내기)
+  app/page.js            화면 전환 진입점
+  app/layout.js/globals.css  루트 레이아웃 + 스타일시트(frontend/static/css/style.css와 같은 클래스명 기준)
+  lib/api.js              API_BASE(NEXT_PUBLIC_API_BASE 환경변수, 기본값은 Render 배포 URL 하드코딩) + api() fetch 헬퍼
+  lib/AppContext.js         전역 상태/액션 — 프로필/화면전환/얼굴 줌/제품/기록/분석/실험 등 대부분의 로직이 여기 모여있음
+  components/              화면(screens/)·모달(modals/) 컴포넌트, FaceRecord.js/FaceHistory.js(얼굴 SVG)
+
 backend/
-  main.py            FastAPI 앱, 페이지 라우트(/), frontend/ 정적 서빙, /api/analysis
+  main.py            FastAPI 앱, 페이지 라우트(/), frontend/ 정적 서빙, CORS 미들웨어, /api/config, /api/analysis
   database.py        SQLAlchemy 엔진 (DATABASE_URL 없으면 sqlite 폴백)
   deps.py             get_current_profile_id — X-Profile-Id 헤더 검증하는 FastAPI dependency, 거의 모든 라우터가 씀
   models.py          Profile / Product / DailyLog / TroubleDot / SuspectIngredient / Experiment / ExternalFactor, ZONES 상수
@@ -199,7 +208,26 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 
 ---
 
-## 5. 향후 아이디어 (미구현 — 설계만 있던 것, 우선순위 낮음)
+## 5. React 프론트(`web/`) + Vercel 배포
+
+백엔드(FastAPI, Render)는 그대로 두고, React/Next.js로 새로 만든 `web/`을 Vercel에 정적 사이트로 배포함. 기존 `frontend/`(바닐라 JS + Jinja)를 대체한 게 아니라 **완전히 별개의 새 프론트**로 나란히 존재함 — `frontend/`는 지금도 Render가 그대로 직접 서빙 중(`https://zone-app-9iiw.onrender.com`).
+
+**왜 두 프론트가 공존하는지**: `frontend/`에는 사용자가 다른 세션에서 직접 작업한 서브존(부위 확대) 기능이 커밋 안 된 채로 들어있어서, 그 작업을 보존하려고 건드리지 않았음. React 버전은 `web/`에 처음부터 새로 만듦.
+
+**아키텍처**:
+- `output: 'export'`(next.config.mjs) — Next.js 서버가 렌더링하는 게 아니라 `next build`가 순수 정적 HTML/JS/CSS(`web/out/`)로 뽑아냄. Vercel엔 서버 코드가 전혀 없고, 모든 API 로직은 여전히 Render의 FastAPI 하나에만 있음.
+- `web/lib/AppContext.js`가 원래 `frontend/static/js/app.js`가 하던 일(프로필/화면전환/얼굴 줌/제품/기록/분석/실험 로직)을 React Context + hooks로 옮겨놓은 것 — 컴포넌트들은 대부분 `useApp()`으로 이 상태/액션을 가져다 씀.
+- `web/lib/api.js`의 `API_BASE`는 `NEXT_PUBLIC_API_BASE` 환경변수로 **빌드 시점**에 정해짐(런타임 hostname 감지 아님 — Next.js 정적 내보내기 관례). Vercel 프로젝트 환경변수로 설정하거나, 안 하면 코드에 하드코딩된 `https://zone-app-9iiw.onrender.com`이 기본값으로 쓰임. **Render 배포 URL이 바뀌면 이 하드코딩 값도 같이 바꿔야 함.**
+- `backend/main.py`에 `CORSMiddleware` 추가됨 — `CORS_ORIGINS` 환경변수(콤마 구분)로 허용 오리진을 좁힐 수 있고, 비워두면 `*`(전체 허용, 기본값). `X-Profile-Id`는 쿠키가 아니라 커스텀 헤더라 `allow_credentials` 없이 `*`로 열어도 안전함.
+- Vercel 프로젝트 만들 때 **Root Directory를 `web`으로 지정**해야 함(레포 루트 아님). Framework Preset은 Next.js가 자동 인식.
+
+**알아두면 좋은 것**: `web/`을 새로 짜면서 `frontend/`에 있던 실제 버그 하나를 고쳤음 — 확대(줌) 상태에서 서브존 텍스트 라벨(`.sub-label`)에 `pointer-events: auto`가 걸려있어서 라벨이 클릭을 가로채고 그 아래 실제 `.zone` path로 클릭이 전달되지 않는 문제(Playwright로 발견, `frontend/`는 사용자 WIP라 그쪽은 안 건드리고 `web/app/globals.css`에서만 `pointer-events: none`으로 고침). `frontend/`의 서브존 기능을 나중에 커밋할 때 이 CSS도 같이 고쳐야 함.
+
+로컬 개발: `cd web && npm install && npm run dev` (Next.js 개발 서버는 `localhost`만 신뢰함 — `127.0.0.1`로 접속하면 dev 서버의 cross-origin 보호(`allowedDevOrigins`)에 막혀 정적 청크가 403으로 실패하고 앱이 하이드레이션되지 않음, 실제로 이 문제를 겪음). 로컬 백엔드를 쓰려면 `web/.env.local`에 `NEXT_PUBLIC_API_BASE=http://localhost:<포트>` 지정.
+
+---
+
+## 6. 향후 아이디어 (미구현 — 설계만 있던 것, 우선순위 낮음)
 
 시간이 남으면 고려할 수 있는 확장. 아래는 전부 **아직 코드에 없음**.
 
@@ -210,4 +238,3 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 | pm25 자동 배치/분석 연동 | 지금은 `sync-pm25`를 수동 호출해야 채워짐. 트러블 발생일 자동 동기화나, `analyze()`에 "트러블 난 날 pm25 평균 vs 클린 기간 평균 비교" 같은 상관관계 로직은 아직 없음 |
 | 진짜 인증(비밀번호/세션) | 지금은 `X-Profile-Id` 헤더만으로 프로필을 구분함 — 헤더 값을 알면 남의 데이터도 볼 수 있어서 진짜 보안은 아님. 여러 명이 진짜 비밀로 데이터를 지켜야 하면 그때 세션/비밀번호를 다시 설계 |
 | 진짜 웹푸시 알림 | 지금은 앱을 열었을 때 벨 아이콘에 배지만 뜸(`/api/today-status`). 브라우저 꺼도 오는 푸시는 서비스워커+VAPID+서버 스케줄러 필요 |
-| 프론트를 Vercel로 분리 | 지금은 Render 단일 서비스. 분리 시 `X-Profile-Id` 헤더 방식은 그대로 유지 가능하지만, API 호출 주소/CORS는 새로 설정 필요 |
