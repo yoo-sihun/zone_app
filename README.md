@@ -12,7 +12,9 @@
 - 같은 날 같은 부위·시간대에 겹쳐 바른 성분 조합이 상성 경고 대상(AHA/BHA+레티놀 등)이면 기록 즉시 안내
 - 수면시간·생리주기 등 외부 요인 수동 기록, 미세먼지(PM2.5)는 에어코리아 API로 자동 조회
 - 기간 선택해서 트러블/도포 히스토리/의심 성분/외부 요인 요약 PDF 리포트 생성
-- 로그인/계정 없음 — 단일 사용자 기준(해커톤 스코프)
+- 비밀번호 없는 프로필 선택 방식 — 이메일/비밀번호 로그인은 없고, 프로필만 골라서 각자 기록을 분리해서 씀
+- 홈 대시보드(오늘의 피부 날씨, 오늘 바로 추천, 바로가기) + 하단 네비게이션(홈/히스토리/기록/마이)
+- 앱 켰을 때 오늘 기록 안 했으면 벨 아이콘에 배지 표시 (브라우저 꺼도 오는 진짜 푸시는 아님)
 
 위 기능 전부 화면(`frontend/`)까지 연동 완료 — 지금 UI는 임시 디자인이고, 팀 프론트 담당자의 피그마 디자인이 나오면 교체될 예정입니다.
 
@@ -57,6 +59,7 @@ pip install -r requirements.txt
   "한국환경공단_에어코리아_대기오염정보" 활용신청(무료) 후 발급되는 **인코딩된 서비스키**를 그대로 붙여넣기
   (URL 인코딩된 형태 그대로 써야 함, 다시 인코딩하면 안 됨)
 - `AIRKOREA_STATION` — 기준 측정소명, 비워두면 "종로구"(서울)
+- `KMA_API_KEY` — 습도/자외선(기상청) 연동용, 아직 스캐폴드만 있고 실제 구현 전이라 지금은 없어도 됨
 
 ## 구조
 
@@ -71,20 +74,23 @@ frontend/
 backend/
   main.py            FastAPI 앱, 페이지 라우트(/), frontend/ 정적 서빙, /api/analysis
   database.py        SQLAlchemy 엔진 (DATABASE_URL 없으면 sqlite 폴백)
-  models.py          Product / DailyLog / TroubleDot / SuspectIngredient / Experiment / ExternalFactor
+  deps.py             X-Profile-Id 헤더 검증 (로그인 대체)
+  models.py          Profile / Product / DailyLog / TroubleDot / SuspectIngredient / Experiment / ExternalFactor
   schemas.py         Pydantic 요청/응답 모델
   analysis.py         트러블-성분 대조 분석 로직
   experiments.py       3일 실험 로직 (잠금 판정, 전후 비교 계산)
   interactions.py       성분 조합 상성 정적 테이블
   airkorea.py            에어코리아 미세먼지(PM2.5) API 연동
+  weather.py             기상청 습도/자외선 연동 스캐폴드 (KMA_API_KEY 필요, 아직 미구현)
   reports.py             PDF 리포트 생성 (reportlab)
   fonts/NanumSquareR.ttf  PDF용 한글 폰트 (SIL OFL)
   routers/
-    products.py       /api/products (CRUD), /api/products/ocr
-    logs.py            /api/day/{date}, /api/log/toggle, /api/dots 등
+    profiles.py          /api/profiles (프로필 목록/생성/삭제)
+    products.py       /api/products (CRUD), /api/products/ocr, /api/products/recommended
+    logs.py            /api/day/{date}, /api/today-status, /api/log/toggle, /api/dots 등
     suspects.py         /api/suspects (CRUD)
     experiments.py       /api/experiments (시작/조회/결과/중단)
-    external_factors.py   /api/external-factors (수면/생리주기/메모/미세먼지 동기화)
+    external_factors.py   /api/external-factors (수면/생리주기/메모/미세먼지·습도·자외선 동기화)
     reports.py             /api/reports/pdf
 
 ai/
@@ -113,7 +119,7 @@ render.yaml           Render 배포 설정 (Blueprint)
 
 ## 참고
 
-- 로그인/회원가입 없음 — 모든 데이터는 사용자 구분 없이 전역으로 저장됨(해커톤 데모용, 단일 사용자 전제)
+- 이메일/비밀번호 로그인 없음 — 대신 프로필 선택 방식(`X-Profile-Id` 헤더). 진짜 보안은 아니고, 여러 명이 기록을 안 섞고 쓰는 용도
 - 성분표/트러블 사진은 저장하지 않고 OpenAI에 전달해 결과만 추출한 뒤 버림 (Storage 불필요)
 - 분석 로직의 `LAG_DAYS`(기본 3일)는 `backend/analysis.py`에서 조정 가능
 - **`openai` 패키지 버전 낮추지 말 것.** `1.51.0` 같은 구버전은 최신 `httpx`(0.28+)와 안 맞아서

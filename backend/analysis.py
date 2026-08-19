@@ -8,8 +8,8 @@ from .models import DailyLog, TroubleDot, Product, ZONES
 LAG_DAYS = 3  # 트러블 발생일 기준 며칠 전까지의 사용 기록을 의심하는지
 
 
-def analyze(db: Session, dot_type: str | None = None) -> dict:
-    dots_query = db.query(TroubleDot)
+def analyze(db: Session, profile_id: int, dot_type: str | None = None) -> dict:
+    dots_query = db.query(TroubleDot).filter(TroubleDot.profile_id == profile_id)
     if dot_type:
         dots_query = dots_query.filter(TroubleDot.type == dot_type)
     dots = dots_query.all()
@@ -25,7 +25,7 @@ def analyze(db: Session, dot_type: str | None = None) -> dict:
     bad_zones = sorted({d.zone for d in dots})
     good_zones = [z for z in ZONES if z not in bad_zones]
 
-    products = {p.id: p for p in db.query(Product).all()}
+    products = {p.id: p for p in db.query(Product).filter(Product.profile_id == profile_id).all()}
 
     # ingredient -> {count, zones:set, time_slots:set, product_ids:set}
     hits: dict[str, dict] = defaultdict(
@@ -37,6 +37,7 @@ def analyze(db: Session, dot_type: str | None = None) -> dict:
         entries = (
             db.query(DailyLog)
             .filter(
+                DailyLog.profile_id == profile_id,
                 DailyLog.zone == dot.zone,
                 DailyLog.date >= window_start,
                 DailyLog.date <= dot.date,
@@ -57,7 +58,11 @@ def analyze(db: Session, dot_type: str | None = None) -> dict:
     # 안 난 부위(대조군)에서 쓰인 성분은 용의선상에서 제외
     safe: set[str] = set()
     if good_zones:
-        good_entries = db.query(DailyLog).filter(DailyLog.zone.in_(good_zones)).all()
+        good_entries = (
+            db.query(DailyLog)
+            .filter(DailyLog.profile_id == profile_id, DailyLog.zone.in_(good_zones))
+            .all()
+        )
         for entry in good_entries:
             product = products.get(entry.product_id)
             if not product:
@@ -78,7 +83,7 @@ def analyze(db: Session, dot_type: str | None = None) -> dict:
     suspects.sort(key=lambda s: s["count"], reverse=True)
 
     # 기록 기간 파악 (트러블/도포 기록 중 가장 이른 날짜 기준)
-    log_dates = [r[0] for r in db.query(DailyLog.date).all()]
+    log_dates = [r[0] for r in db.query(DailyLog.date).filter(DailyLog.profile_id == profile_id).all()]
     all_dates = [d.date for d in dots] + log_dates
     days_tracked = (Date.today() - min(all_dates)).days + 1 if all_dates else 0
 

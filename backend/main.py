@@ -8,12 +8,14 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
+from .deps import get_current_profile_id
 from .routers import products as products_router
 from .routers import logs as logs_router
 from .routers import suspects as suspects_router
 from .routers import experiments as experiments_router
 from .routers import external_factors as external_factors_router
 from .routers import reports as reports_router
+from .routers import profiles as profiles_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
 from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS
 from .analysis import analyze
@@ -26,6 +28,7 @@ app = FastAPI(title="ZONE")
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 templates = Jinja2Templates(directory="frontend/templates")
 
+app.include_router(profiles_router.router)
 app.include_router(products_router.router)
 app.include_router(logs_router.router)
 app.include_router(suspects_router.router)
@@ -50,10 +53,14 @@ def index(request: Request):
 
 
 @app.get("/api/analysis")
-def get_analysis(type: str | None = None, db: Session = Depends(get_db)):
+def get_analysis(
+    type: str | None = None,
+    profile_id: int = Depends(get_current_profile_id),
+    db: Session = Depends(get_db),
+):
     if type is not None and type not in TROUBLE_TYPES:
         raise HTTPException(status_code=400, detail="알 수 없는 트러블 유형입니다")
-    return analyze(db, dot_type=type)
+    return analyze(db, profile_id, dot_type=type)
 
 
 @app.get("/health")

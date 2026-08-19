@@ -5,8 +5,9 @@ from openai import OpenAIError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..deps import get_current_profile_id
 from ..models import DailyLog, TroubleDot, Product, ZONES, TIME_SLOTS, TROUBLE_TYPES
-from ..schemas import LogToggleIn, DotIn, DaySnapshot
+from ..schemas import LogToggleIn, DotIn, DaySnapshot, TodayStatus
 from ..experiments import locked_ingredient
 from ..interactions import check_interactions
 
@@ -16,20 +17,34 @@ router = APIRouter(prefix="/api", tags=["logs"])
 
 
 @router.get("/day/{day}", response_model=DaySnapshot)
-def get_day(day: Date, db: Session = Depends(get_db)):
-    entries = db.query(DailyLog).filter(DailyLog.date == day).all()
+def get_day(day: Date, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    entries = db.query(DailyLog).filter(DailyLog.profile_id == profile_id, DailyLog.date == day).all()
     log: dict[str, dict[str, list[int]]] = {z: {"am": [], "pm": []} for z in ZONES}
     for e in entries:
         log[e.zone][e.time_slot].append(e.product_id)
 
-    dots = db.query(TroubleDot).filter(TroubleDot.date == day).all()
+    dots = db.query(TroubleDot).filter(TroubleDot.profile_id == profile_id, TroubleDot.date == day).all()
     dots_out = [{"id": d.id, "zone": d.zone, "type": d.type, "x": d.x, "y": d.y} for d in dots]
 
     return {"date": day, "log": log, "dots": dots_out}
 
 
+@router.get("/today-status", response_model=TodayStatus)
+def get_today_status(profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    today = Date.today()
+    logged = (
+        db.query(DailyLog)
+        .filter(DailyLog.profile_id == profile_id, DailyLog.date == today)
+        .first()
+        is not None
+    )
+    return {"date": today, "logged": logged}
+
+
 @router.post("/log/toggle")
-def toggle_log(data: LogToggleIn, db: Session = Depends(get_db)):
+def toggle_log(
+    data: LogToggleIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
     if data.zone not in ZONES:
         raise HTTPException(status_code=400, detail="알 수 없는 부위입니다")
     if data.time_slot not in TIME_SLOTS:
@@ -37,6 +52,7 @@ def toggle_log(data: LogToggleIn, db: Session = Depends(get_db)):
     existing = (
         db.query(DailyLog)
         .filter(
+            DailyLog.profile_id == profile_id,
             DailyLog.date == data.date,
             DailyLog.zone == data.zone,
             DailyLog.time_slot == data.time_slot,
@@ -49,21 +65,28 @@ def toggle_log(data: LogToggleIn, db: Session = Depends(get_db)):
         db.commit()
         return {"applied": False}
 
-    locked_ing = locked_ingredient(db, data.date)
+    locked_ing = locked_ingredient(db, profile_id, data.date)
     if locked_ing:
-        product = db.query(Product).filter(Product.id == data.product_id).first()
+        product = (
+            db.query(Product)
+            .filter(Product.id == data.product_id, Product.profile_id == profile_id)
+            .first()
+        )
         if product and locked_ing in product.ingredients:
             raise HTTPException(
                 status_code=400, detail=f"'{locked_ing}' 실험 진행 중이라 이 제품은 잠겨 있습니다"
             )
 
-    entry = DailyLog(date=data.date, zone=data.zone, time_slot=data.time_slot, product_id=data.product_id)
+    entry = DailyLog(
+        profile_id=profile_id, date=data.date, zone=data.zone, time_slot=data.time_slot, product_id=data.product_id
+    )
     db.add(entry)
     db.commit()
 
     same_slot_entries = (
         db.query(DailyLog)
         .filter(
+            DailyLog.profile_id == profile_id,
             DailyLog.date == data.date,
             DailyLog.zone == data.zone,
             DailyLog.time_slot == data.time_slot,
@@ -72,7 +95,7 @@ def toggle_log(data: LogToggleIn, db: Session = Depends(get_db)):
     )
     products = (
         db.query(Product)
-        .filter(Product.id.in_([e.product_id for e in same_slot_entries]))
+        .filter(Product.profile_id == profile_id, Product.id.in_([e.product_id for e in same_slot_entries]))
         .all()
     )
     ingredient_set: set[str] = set()
@@ -83,13 +106,15 @@ def toggle_log(data: LogToggleIn, db: Session = Depends(get_db)):
 
 
 @router.post("/log/copy-previous")
-def copy_previous(day: Date, db: Session = Depends(get_db)):
+def copy_previous(day: Date, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
     prev_day = day - timedelta(days=1)
-    prev_entries = db.query(DailyLog).filter(DailyLog.date == prev_day).all()
-    db.query(DailyLog).filter(DailyLog.date == day).delete()
+    prev_entries = (
+        db.query(DailyLog).filter(DailyLog.profile_id == profile_id, DailyLog.date == prev_day).all()
+    )
+    db.query(DailyLog).filter(DailyLog.profile_id == profile_id, DailyLog.date == day).delete()
 
-    locked_ing = locked_ingredient(db, day)
-    products = {p.id: p for p in db.query(Product).all()}
+    locked_ing = locked_ingredient(db, profile_id, day)
+    products = {p.id: p for p in db.query(Product).filter(Product.profile_id == profile_id).all()}
 
     skipped: list[str] = []
     copied: list[tuple[str, str]] = []  # (zone, time_slot) pairs actually written
@@ -98,7 +123,11 @@ def copy_previous(day: Date, db: Session = Depends(get_db)):
         if locked_ing and product and locked_ing in product.ingredients:
             skipped.append(product.name)
             continue
-        db.add(DailyLog(date=day, zone=e.zone, time_slot=e.time_slot, product_id=e.product_id))
+        db.add(
+            DailyLog(
+                profile_id=profile_id, date=day, zone=e.zone, time_slot=e.time_slot, product_id=e.product_id
+            )
+        )
         copied.append((e.zone, e.time_slot))
     db.commit()
 
@@ -107,7 +136,12 @@ def copy_previous(day: Date, db: Session = Depends(get_db)):
     for zone, time_slot in set(copied):
         same_slot_entries = (
             db.query(DailyLog)
-            .filter(DailyLog.date == day, DailyLog.zone == zone, DailyLog.time_slot == time_slot)
+            .filter(
+                DailyLog.profile_id == profile_id,
+                DailyLog.date == day,
+                DailyLog.zone == zone,
+                DailyLog.time_slot == time_slot,
+            )
             .all()
         )
         ingredient_set: set[str] = set()
@@ -121,8 +155,8 @@ def copy_previous(day: Date, db: Session = Depends(get_db)):
 
 
 @router.delete("/log/{day}")
-def clear_day(day: Date, db: Session = Depends(get_db)):
-    db.query(DailyLog).filter(DailyLog.date == day).delete()
+def clear_day(day: Date, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    db.query(DailyLog).filter(DailyLog.profile_id == profile_id, DailyLog.date == day).delete()
     db.commit()
     return {"ok": True}
 
@@ -142,12 +176,12 @@ async def classify_dot(file: UploadFile = File(...)):
 
 
 @router.post("/dots")
-def add_dot(data: DotIn, db: Session = Depends(get_db)):
+def add_dot(data: DotIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
     if data.zone not in ZONES:
         raise HTTPException(status_code=400, detail="알 수 없는 부위입니다")
     if data.type not in TROUBLE_TYPES:
         raise HTTPException(status_code=400, detail="알 수 없는 트러블 유형입니다")
-    dot = TroubleDot(date=data.date, zone=data.zone, type=data.type, x=data.x, y=data.y)
+    dot = TroubleDot(profile_id=profile_id, date=data.date, zone=data.zone, type=data.type, x=data.x, y=data.y)
     db.add(dot)
     db.commit()
     db.refresh(dot)
@@ -155,8 +189,8 @@ def add_dot(data: DotIn, db: Session = Depends(get_db)):
 
 
 @router.delete("/dots/{dot_id}")
-def remove_dot(dot_id: int, db: Session = Depends(get_db)):
-    dot = db.query(TroubleDot).filter(TroubleDot.id == dot_id).first()
+def remove_dot(dot_id: int, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    dot = db.query(TroubleDot).filter(TroubleDot.id == dot_id, TroubleDot.profile_id == profile_id).first()
     if not dot:
         raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다")
     db.delete(dot)

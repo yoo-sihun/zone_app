@@ -5,7 +5,8 @@ from openai import OpenAIError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Product, SuspectIngredient
+from ..deps import get_current_profile_id
+from ..models import DailyLog, Product, SuspectIngredient
 from ..schemas import ProductIn, ProductOut, ProductCreateOut, OcrResult
 from ..experiments import locked_ingredient
 
@@ -15,9 +16,9 @@ router = APIRouter(prefix="/api/products", tags=["products"])
 
 
 @router.get("", response_model=list[ProductOut])
-def list_products(db: Session = Depends(get_db)):
-    locked_ing = locked_ingredient(db, Date.today())
-    products = db.query(Product).all()
+def list_products(profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    locked_ing = locked_ingredient(db, profile_id, Date.today())
+    products = db.query(Product).filter(Product.profile_id == profile_id).all()
     return [
         {
             "id": p.id,
@@ -29,21 +30,51 @@ def list_products(db: Session = Depends(get_db)):
     ]
 
 
+@router.get("/recommended", response_model=list[ProductOut])
+def recommended_products(profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    """오늘 아직 안 바른, 화장대에 등록된 제품들 — 별도 추천 엔진 없이 자기 제품 기반."""
+    today = Date.today()
+    applied_ids = {
+        r[0]
+        for r in db.query(DailyLog.product_id)
+        .filter(DailyLog.profile_id == profile_id, DailyLog.date == today)
+        .all()
+    }
+    locked_ing = locked_ingredient(db, profile_id, today)
+    products = db.query(Product).filter(Product.profile_id == profile_id).all()
+    remaining = [p for p in products if p.id not in applied_ids]
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "ingredients": p.ingredients,
+            "locked": bool(locked_ing and locked_ing in p.ingredients),
+        }
+        for p in remaining[:6]
+    ]
+
+
 @router.post("", response_model=ProductCreateOut)
-def create_product(data: ProductIn, db: Session = Depends(get_db)):
-    product = Product(name=data.name, ingredients=data.ingredients)
+def create_product(
+    data: ProductIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    product = Product(profile_id=profile_id, name=data.name, ingredients=data.ingredients)
     db.add(product)
     db.commit()
     db.refresh(product)
 
-    suspects = {s.ingredient for s in db.query(SuspectIngredient).all()}
+    suspects = {
+        s.ingredient for s in db.query(SuspectIngredient).filter(SuspectIngredient.profile_id == profile_id).all()
+    }
     warnings = [ing for ing in product.ingredients if ing in suspects]
     return {"id": product.id, "name": product.name, "ingredients": product.ingredients, "warnings": warnings}
 
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.id == product_id).first()
+def delete_product(
+    product_id: int, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    product = db.query(Product).filter(Product.id == product_id, Product.profile_id == profile_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
     db.delete(product)

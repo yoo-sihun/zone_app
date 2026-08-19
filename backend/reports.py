@@ -36,7 +36,7 @@ def _table(rows: list[list[str]]) -> Table:
     return table
 
 
-def generate_report_pdf(db: Session, start: Date, end: Date) -> bytes:
+def generate_report_pdf(db: Session, profile_id: int, start: Date, end: Date) -> bytes:
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("TitleKR", parent=styles["Title"], fontName=FONT_NAME)
     h2_style = ParagraphStyle("H2KR", parent=styles["Heading2"], fontName=FONT_NAME)
@@ -52,7 +52,7 @@ def generate_report_pdf(db: Session, start: Date, end: Date) -> bytes:
 
     dots = (
         db.query(TroubleDot)
-        .filter(TroubleDot.date >= start, TroubleDot.date <= end)
+        .filter(TroubleDot.profile_id == profile_id, TroubleDot.date >= start, TroubleDot.date <= end)
         .order_by(TroubleDot.date)
         .all()
     )
@@ -71,11 +71,11 @@ def generate_report_pdf(db: Session, start: Date, end: Date) -> bytes:
 
     logs = (
         db.query(DailyLog)
-        .filter(DailyLog.date >= start, DailyLog.date <= end)
+        .filter(DailyLog.profile_id == profile_id, DailyLog.date >= start, DailyLog.date <= end)
         .order_by(DailyLog.date)
         .all()
     )
-    products = {p.id: p for p in db.query(Product).all()}
+    products = {p.id: p for p in db.query(Product).filter(Product.profile_id == profile_id).all()}
     story.append(Paragraph(f"도포 제품 히스토리 ({len(logs)}건)", h2_style))
     story.append(Spacer(1, 6))
     if logs:
@@ -95,7 +95,7 @@ def generate_report_pdf(db: Session, start: Date, end: Date) -> bytes:
         story.append(Paragraph("해당 기간 도포 기록이 없습니다.", body_style))
     story.append(Spacer(1, 18))
 
-    suspects = db.query(SuspectIngredient).all()
+    suspects = db.query(SuspectIngredient).filter(SuspectIngredient.profile_id == profile_id).all()
     story.append(Paragraph("의심 성분 이력", h2_style))
     story.append(Spacer(1, 6))
     if suspects:
@@ -106,7 +106,7 @@ def generate_report_pdf(db: Session, start: Date, end: Date) -> bytes:
 
     factors = (
         db.query(ExternalFactor)
-        .filter(ExternalFactor.date >= start, ExternalFactor.date <= end)
+        .filter(ExternalFactor.profile_id == profile_id, ExternalFactor.date >= start, ExternalFactor.date <= end)
         .order_by(ExternalFactor.date)
         .all()
     )

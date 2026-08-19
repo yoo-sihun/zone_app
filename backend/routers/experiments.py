@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..deps import get_current_profile_id
 from ..models import Experiment
 from ..schemas import ExperimentIn, ExperimentOut, ExperimentResult
 from ..experiments import (
@@ -29,18 +30,20 @@ def _to_out(exp: Experiment) -> dict:
 
 
 @router.get("/active", response_model=ExperimentOut | None)
-def get_active(db: Session = Depends(get_db)):
-    exp = get_active_experiment(db)
+def get_active(profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    exp = get_active_experiment(db, profile_id)
     if not exp:
         return None
     return _to_out(exp)
 
 
 @router.post("", response_model=ExperimentOut)
-def start_experiment(data: ExperimentIn, db: Session = Depends(get_db)):
-    if get_active_experiment(db):
+def start_experiment(
+    data: ExperimentIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    if get_active_experiment(db, profile_id):
         raise HTTPException(status_code=400, detail="이미 진행 중인 실험이 있습니다")
-    exp = Experiment(ingredient=data.ingredient, start_date=Date.today(), status="active")
+    exp = Experiment(profile_id=profile_id, ingredient=data.ingredient, start_date=Date.today(), status="active")
     db.add(exp)
     db.commit()
     db.refresh(exp)
@@ -48,8 +51,14 @@ def start_experiment(data: ExperimentIn, db: Session = Depends(get_db)):
 
 
 @router.get("/{experiment_id}/result", response_model=ExperimentResult)
-def get_result(experiment_id: int, db: Session = Depends(get_db)):
-    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+def get_result(
+    experiment_id: int, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    exp = (
+        db.query(Experiment)
+        .filter(Experiment.id == experiment_id, Experiment.profile_id == profile_id)
+        .first()
+    )
     if not exp:
         raise HTTPException(status_code=404, detail="실험을 찾을 수 없습니다")
     today = Date.today()
@@ -70,8 +79,14 @@ def get_result(experiment_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{experiment_id}")
-def stop_experiment(experiment_id: int, db: Session = Depends(get_db)):
-    exp = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+def stop_experiment(
+    experiment_id: int, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    exp = (
+        db.query(Experiment)
+        .filter(Experiment.id == experiment_id, Experiment.profile_id == profile_id)
+        .first()
+    )
     if not exp:
         raise HTTPException(status_code=404, detail="실험을 찾을 수 없습니다")
     exp.status = "stopped"

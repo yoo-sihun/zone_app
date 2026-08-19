@@ -7,7 +7,7 @@
 **실제 스택** (계획 문서가 아니라 지금 리포에 있는 그대로):
 - 백엔드: FastAPI, SQLAlchemy ORM
 - DB: `DATABASE_URL` 환경변수가 없으면 로컬 sqlite(`zone.db`) 자동 사용. 지정하면 아무 Postgres(Supabase 포함)든 연결 가능 — 하지만 Supabase Auth/Storage/RLS는 안 씀, 순수 커넥션 문자열로만 사용.
-- 인증: **없음.** 로그인/회원가입 기능 자체를 제거함 — 모든 데이터는 사용자 구분 없이 전역으로 저장되는 단일 사용자 앱. `users` 테이블도 없음.
+- 인증: **비밀번호 없는 프로필 선택 방식.** 로그인(이메일/비밀번호) 화면은 없고, 앱 첫 진입 시 프로필 목록에서 고르거나 새로 만듦(넷플릭스 프로필과 비슷). 선택한 프로필 id는 브라우저 `localStorage`에 저장되고, 이후 모든 `/api/*` 요청에 `X-Profile-Id` 헤더로 실려 감(서버는 `backend/deps.py`의 `get_current_profile_id`로 검증). 세션 쿠키/JWT/비밀번호 없음 — 헤더값만으로 "누구 데이터인지" 구분하는 가벼운 방식이라 진짜 보안은 아님(헤더 값을 바꾸면 남의 프로필 데이터에 접근 가능). 데모/개인용 스코프에서 "여러 명이 기록을 안 섞고 쓰는" 용도로만 충분.
 - 프론트: FastAPI가 Jinja2 템플릿을 직접 서빙(`frontend/templates`) + 바닐라 JS(`frontend/static`). 별도 Vercel/Next.js 없음.
 - AI(OpenAI Vision, `gpt-4o-mini`, JSON 응답 모드): 성분표 사진 → 성분 리스트(`ai/ocr.py`), 트러블 사진 → 유형 추천(`ai/trouble_classify.py`, 베타). 클라이언트 생성은 `ai/client.py`에 공용화. **`openai` 패키지는 반드시 1.54+ 써야 함** — 1.51.0 등 구버전은 최신 `httpx`(0.28+)와 호환이 안 돼서 `OpenAI()` 생성 시점에 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`로 죽음. 실제로 겪은 문제라 requirements.txt에 `openai==1.59.9`로 고정해둠 — 낮춰서 재현하지 말 것.
 - 배포: Render 단일 서비스 (`render.yaml`).
@@ -35,8 +35,12 @@
 - `POST /api/suspects {ingredient}`로 저장해두면, 이후 `POST /api/products`로 등록하는 제품에 그 성분이 있으면 응답의 `warnings`에 표시됨
 - `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
-- **프론트 연동 완료** — [frontend/static/js/app.js](frontend/static/js/app.js)가 위 API들을 다 씀 (AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트, 외부 요인 폼, PDF 리포트 모달). 헤더의 "⚠ 의심성분/📋 오늘 기록/📄 리포트" 버튼이 각각의 진입점.
-- **디자인**: 밝은 화이트+틸 톤의 "의료/피부과학" 느낌으로 재작업함(어두운 테마 프로토타입은 버림). 팀 프론트 담당자의 피그마 디자인이 나오면 다시 교체될 수 있음 — `frontend/static/js/app.js`는 API 로직이라 손 안 댔고, `frontend/templates/index.html` + `frontend/static/css/style.css`만 새로 짬. app.js가 참조하는 id/class(`#mApply` `#slotToggle` `.prod` `.zone.applied` `.card.top` 등)는 그대로 유지했으니, 마크업/CSS를 또 바꾸더라도 이 이름들은 유지해야 JS가 안 깨짐.
+- **프론트 연동 완료, 홈 대시보드 + 하단 네비게이션 구조**([frontend/static/js/app.js](frontend/static/js/app.js)) — 화면 3개(홈/기록/마이)를 JS로 전환하는 SPA 형태:
+  - **홈**: 오늘의 피부 날씨 카드(PM2.5 실제 값 + 습도/자외선은 "준비 중"), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트)
+  - **기록**: 기존 얼굴 SVG + 제품 바른 부위/트러블 표시 — AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/3일 실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트가 다 여기
+  - **마이**: 현재 프로필 이름 + 프로필 전환, 외부 요인/의심 성분/리포트 바로가기
+  - 헤더의 🔔 벨 아이콘: `/api/today-status`로 오늘 기록 여부 확인해서 배지 표시 — 브라우저 꺼도 오는 진짜 푸시 아니고 앱 켰을 때만 보이는 인앱 알림
+- **디자인**: 밝은 화이트+틸 톤의 "의료/피부과학" 느낌. 사용자가 준 레퍼런스(홈 대시보드+하단 탭 구조)를 참고해서 다시 짰지만, 레퍼런스에 있던 별점/제품 사진/추천 엔진/알림 배지 중 실제 데이터가 없는 건(별점, 제품 사진) 그대로 안 넣었음 — 장식용 UI를 만들지 않는다는 원칙. 팀 프론트 담당자의 피그마 디자인이 나오면 다시 교체될 수 있음.
 
 **성분 조합 상성 경고** ([backend/interactions.py](backend/interactions.py))도 구현됨:
 - DB 테이블이 아니라 코드에 하드코딩된 정적 리스트(`INGREDIENT_INTERACTIONS`) — 관리자가 수시로 바꿀 데이터가 아니라서 굳이 테이블로 뺄 필요 없다고 판단함. 조합 늘리려면 이 파일에 딕셔너리만 추가하면 됨.
@@ -55,41 +59,54 @@
 ## 1. 실제 데이터 모델 ([backend/models.py](backend/models.py))
 
 ```
+profiles                -- 비밀번호 없는 프로필 (로그인 대체)
+  id, name, created_at
+
 products
-  id, name,
+  id, profile_id, name,
   ingredients JSON  -- 문자열 리스트, 별도 ingredients 테이블 없음
 
 daily_logs             -- "이 날 이 부위/시간대에 이 제품을 발랐다"
-  id, date, zone, time_slot(am|pm), product_id
-  unique(date, zone, product_id, time_slot)
+  id, profile_id, date, zone, time_slot(am|pm), product_id
+  unique(profile_id, date, zone, product_id, time_slot)
 
 trouble_dots            -- 트러블 위치 마킹
-  id, date, zone, type(comedonal|papule|pustule|redness), x, y
+  id, profile_id, date, zone, type(comedonal|papule|pustule|redness), x, y
 
 suspect_ingredients      -- 사용자가 저장해둔 의심 성분
-  id, ingredient (unique), created_at
+  id, profile_id, ingredient, created_at
+  unique(profile_id, ingredient)
 
 experiments              -- 3일 성분 제외 실험
-  id, ingredient, start_date, status(active|completed|stopped), created_at
+  id, profile_id, ingredient, start_date, status(active|completed|stopped), created_at
 
-external_factors         -- 날짜당 1행, 수동 입력 + 미세먼지 자동 동기화
-  id, date (unique), sleep_hours, menstrual_phase, memo, pm25
+external_factors         -- 프로필+날짜당 1행, 수동 입력 + 미세먼지 자동 동기화 + 습도/자외선(스캐폴드)
+  id, profile_id, date, sleep_hours, menstrual_phase, memo, pm25, humidity, uv_index
+  unique(profile_id, date)
 ```
 
-사용자 구분 컬럼(`user_id`) 없음 — 전역 데이터. `ZONES = [forehead, rcheek, lcheek, nose, chin]` (모델 상단 상수).
-인덱스: `daily_logs.date`, `trouble_dots.date`에 index=True.
+`products`/`daily_logs`/`trouble_dots`/`suspect_ingredients`/`experiments`/`external_factors` 전부 `profile_id` FK로 소유자를 구분함(비밀번호 없는 멀티 프로필). `ZONES = [forehead, rcheek, lcheek, nose, chin]` (모델 상단 상수).
+인덱스: `daily_logs.date`, `trouble_dots.date`에 index=True, 모든 테이블의 `profile_id`에도 index.
 
 ---
 
 ## 2. 실제 API 엔드포인트
 
+인증 대신 **모든 `/api/*` 요청에 `X-Profile-Id` 헤더 필수** (없으면 422, 존재 안 하는 id면 404). 아래 목록의 헤더 표기는 생략.
+
 ```
+GET    /api/profiles             → [{id, name}]  -- 헤더 불필요, 프로필 선택 전에 호출함
+POST   /api/profiles             {name} → {id, name}  -- 헤더 불필요
+DELETE /api/profiles/{id}        -- 헤더 불필요
+
 GET    /api/products             → [{id, name, ingredients, locked}]  -- locked는 진행 중인 실험 대상 성분 포함 시 true
+GET    /api/products/recommended → [{id, name, ingredients, locked}]  -- 오늘 아직 안 바른 제품 중 최대 6개(별도 추천 엔진 아님, 자기 화장대 기반)
 POST   /api/products            {name, ingredients: [str]} → {..., warnings: [str]}  -- 의심 성분 겹치면 warnings에 표시
 DELETE /api/products/{id}
 POST   /api/products/ocr        (multipart image) → {name, ingredients}
 
 GET    /api/day/{date}          → {date, log: {zone: {am:[product_id], pm:[product_id]}}, dots: [{id,zone,type,x,y}]}
+GET    /api/today-status        → {date, logged}  -- 오늘 도포 기록이 하나라도 있는지 (홈 화면 알림 배지용)
 POST   /api/log/toggle          {date, zone, time_slot, product_id} → {applied, warnings}  -- 있으면 삭제(warnings 없음), 없으면 추가하고 같은 날짜/부위/시간대 성분 조합 상성 경고 반환. 실험 중인 성분이 든 제품을 새로 추가하려 하면 400
 POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사 (time_slot 포함) → {ok, skipped: [제품명], warnings}. 실험 중인 성분이 든 제품은 복사에서 자동 제외되고 skipped에 표시됨, 나머지에 대해 성분 상성 체크도 toggle과 동일하게 수행
 DELETE /api/log/{date}
@@ -112,11 +129,12 @@ PATCH  /api/experiments/{id}    → 중단(status=stopped)
 POST   /api/external-factors    {date, sleep_hours?, menstrual_phase?, memo?} -- upsert (pm25는 건드리지 않음)
 GET    /api/external-factors/{date} → 값 또는 null
 POST   /api/external-factors/{date}/sync-pm25 → 에어코리아에서 그 날짜 PM2.5 평균 가져와 저장
+POST   /api/external-factors/{date}/sync-weather → 기상청 습도/자외선 연동 스캐폴드, 아직 501(KMA_API_KEY 없음/미구현) 반환
 
 GET    /api/reports/pdf?start=&end= → PDF 파일 스트리밍 다운로드 (기간 내 트러블/도포 히스토리/의심 성분/외부 요인 요약)
 ```
 
-인증 없음 — 모든 엔드포인트가 누구나 호출 가능. `/`가 유일한 페이지 라우트.
+`/`가 유일한 페이지 라우트 — 프론트가 SPA처럼 화면(홈/기록/마이)을 JS로 전환함, 서버 라우트가 여러 개가 아님.
 
 ---
 
@@ -130,21 +148,24 @@ frontend/
 backend/
   main.py            FastAPI 앱, 페이지 라우트(/), frontend/ 정적 서빙, /api/analysis
   database.py        SQLAlchemy 엔진 (DATABASE_URL 없으면 sqlite 폴백)
-  models.py          Product / DailyLog / TroubleDot / SuspectIngredient / Experiment / ExternalFactor, ZONES 상수
+  deps.py             get_current_profile_id — X-Profile-Id 헤더 검증하는 FastAPI dependency, 거의 모든 라우터가 씀
+  models.py          Profile / Product / DailyLog / TroubleDot / SuspectIngredient / Experiment / ExternalFactor, ZONES 상수
   schemas.py         Pydantic 요청/응답 모델
   analysis.py         트러블-성분 대조 분석 (LAG_DAYS=3)
   experiments.py       3일 실험 관련 로직 (잠금 판정, 결과 계산) — analysis.py와 별개 모듈
   interactions.py       성분 조합 상성 정적 테이블 + 체크 함수
   airkorea.py            에어코리아 미세먼지 API 호출 (PM2.5 일평균 계산)
+  weather.py             기상청 습도/자외선 연동 스캐폴드 — KMA_API_KEY 없으면 RuntimeError, 아직 실제 연동 안 됨
   reports.py             PDF 리포트 생성 (reportlab, 한글 폰트 임베드)
   fonts/
     NanumSquareR.ttf     PDF용 한글 폰트 (SIL OFL, reports.py가 TTFont로 임베드)
   routers/
+    profiles.py          /api/profiles/*  (헤더 검증 없음 — 프로필 고르기 전 단계라서)
     products.py       /api/products/*  (ai.ocr, experiments.locked_ingredient을 import)
-    logs.py            /api/day, /api/log/*, /api/dots/*  (experiments.locked_ingredient, interactions.check_interactions 사용)
+    logs.py            /api/day, /api/today-status, /api/log/*, /api/dots/*  (experiments.locked_ingredient, interactions.check_interactions 사용)
     suspects.py         /api/suspects/*
     experiments.py       /api/experiments/*
-    external_factors.py   /api/external-factors/*  (airkorea.fetch_pm25 사용)
+    external_factors.py   /api/external-factors/*  (airkorea.fetch_pm25, weather.fetch_humidity_uv 사용)
     reports.py             /api/reports/pdf
 
 ai/
@@ -160,7 +181,8 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 ## 4. 작업 시 주의
 
 - 새 기능을 추가할 때 "이미 있는 것처럼" 가정하지 말 것 — 이 파일의 §1/§2/§3이 유일하게 실제로 존재하는 스키마/API임.
-- **로그인/회원가입을 다시 추가하지 말 것.** 명시적으로 걷어낸 기능임 — 해커톤 스코프상 단일 사용자로 충분하다고 판단해서 제거함. 나중에 여러 사용자가 각자 계정으로 쓰는 서비스로 확장해야 한다면, 그때 `users` 테이블 + 인증 방식(세션 쿠키든 Supabase Auth든)을 다시 설계해서 넣어야 함.
+- **이메일/비밀번호 로그인을 추가하지 말 것.** 여러 프로필을 지원해야 한다는 요구는 이미 §1의 `profiles` 테이블 + `X-Profile-Id` 헤더 방식으로 해결됨 — 진짜 인증(비밀번호, 세션, JWT)이 필요해지면 그때 다시 설계할 것.
+- **프론트에서 API를 직접 호출하는 새 코드를 짤 때 `X-Profile-Id` 헤더를 빠뜨리지 말 것.** `frontend/static/js/app.js`의 `api()` 헬퍼는 자동으로 붙여주지만, PDF 리포트 다운로드처럼 `api()`를 안 거치고 `fetch`를 직접 쓰는 곳(`openReportModal`)은 헤더를 수동으로 넣어야 함 — 브라우저 다운로드/네비게이션(`window.open`, `<a href>`)은 커스텀 헤더를 못 실어서 이렇게 됨.
 - `backend/`와 `ai/`는 둘 다 리포 루트 기준 top-level 패키지라서, `backend/routers/products.py`에서 `ai.ocr`을 import할 때 상대 임포트(`..`)가 아니라 절대 임포트(`from ai.ocr import ...`)를 씀. 실행은 항상 리포 루트에서 `uvicorn backend.main:app`으로 해야 경로가 맞음.
 - 성분표 사진은 저장하지 않고 OpenAI에 전달해 텍스트만 추출한 뒤 버림(Storage 불필요).
 - `analysis.py`의 `LAG_DAYS`(기본 3일)는 조정 가능한 상수. `experiments.py`의 `EXPERIMENT_DAYS`(기본 3일)는 별개 상수.
@@ -178,7 +200,8 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 | 항목 | 메모 |
 |---|---|
 | 바코드 스캔 등록 | 올리브영은 공식 API 없음 — 공공데이터포털 화장품 데이터셋이 대안이나, 실제로 "바코드→전성분" 매핑까지 제공하는지 확인 필요 |
-| 자외선 자동 연동 | 미세먼지(에어코리아)와는 다른 기관 — 기상청 API 별도 키 발급 필요. `external_factors.uv_index` 컬럼 추가하고 airkorea.py와 비슷한 모듈을 하나 더 만들면 됨 |
+| 기상청 습도/자외선 실연동 | `backend/weather.py`가 스캐폴드만 있음(컬럼 `external_factors.humidity`/`uv_index`, 엔드포인트 `/sync-weather`는 이미 있음). `KMA_API_KEY` 발급되면 `fetch_humidity_uv()` 내부만 채우면 됨, 호출부는 안 바꿔도 됨 |
 | pm25 자동 배치/분석 연동 | 지금은 `sync-pm25`를 수동 호출해야 채워짐. 트러블 발생일 자동 동기화나, `analyze()`에 "트러블 난 날 pm25 평균 vs 클린 기간 평균 비교" 같은 상관관계 로직은 아직 없음 |
-| 다중 사용자 + 로그인 재도입 | 여러 사람이 각자 계정으로 쓰게 하려면 `users` 테이블과 인증을 다시 설계해서 넣어야 함 (§4 참고) |
-| 프론트를 Vercel로 분리 | 지금은 Render 단일 서비스. 분리 시 인증이 없으니 세션 쿠키 문제는 없지만, API 호출 주소/CORS는 새로 설정 필요 |
+| 진짜 인증(비밀번호/세션) | 지금은 `X-Profile-Id` 헤더만으로 프로필을 구분함 — 헤더 값을 알면 남의 데이터도 볼 수 있어서 진짜 보안은 아님. 여러 명이 진짜 비밀로 데이터를 지켜야 하면 그때 세션/비밀번호를 다시 설계 |
+| 진짜 웹푸시 알림 | 지금은 앱을 열었을 때 벨 아이콘에 배지만 뜸(`/api/today-status`). 브라우저 꺼도 오는 푸시는 서비스워커+VAPID+서버 스케줄러 필요 |
+| 프론트를 Vercel로 분리 | 지금은 Render 단일 서비스. 분리 시 `X-Profile-Id` 헤더 방식은 그대로 유지 가능하지만, API 호출 주소/CORS는 새로 설정 필요 |

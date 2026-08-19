@@ -22,10 +22,21 @@ TROUBLE_TYPE_LABELS = {
 }
 
 
+class Profile(Base):
+    """A no-password profile — picked from a list, not logged into. All other
+    tables scope their rows to one via profile_id."""
+    __tablename__ = "profiles"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True)
+    profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     ingredients = Column(JSON, nullable=False, default=list)  # list[str]
 
@@ -35,13 +46,14 @@ class DailyLog(Base):
     __tablename__ = "daily_logs"
 
     id = Column(Integer, primary_key=True)
+    profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
     zone = Column(String, nullable=False)
     time_slot = Column(String, nullable=False)  # am | pm
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("date", "zone", "product_id", "time_slot", name="uq_log_entry"),
+        UniqueConstraint("profile_id", "date", "zone", "product_id", "time_slot", name="uq_log_entry"),
     )
 
 
@@ -50,6 +62,7 @@ class TroubleDot(Base):
     __tablename__ = "trouble_dots"
 
     id = Column(Integer, primary_key=True)
+    profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
     zone = Column(String, nullable=False)
     type = Column(String, nullable=False)  # comedonal | papule | pustule | redness
@@ -62,8 +75,11 @@ class SuspectIngredient(Base):
     __tablename__ = "suspect_ingredients"
 
     id = Column(Integer, primary_key=True)
-    ingredient = Column(String, nullable=False, unique=True)
+    profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False, index=True)
+    ingredient = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("profile_id", "ingredient", name="uq_suspect_profile_ingredient"),)
 
 
 class Experiment(Base):
@@ -72,6 +88,7 @@ class Experiment(Base):
     __tablename__ = "experiments"
 
     id = Column(Integer, primary_key=True)
+    profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False, index=True)
     ingredient = Column(String, nullable=False)
     start_date = Column(Date, nullable=False)
     status = Column(String, nullable=False, default="active")  # active | completed | stopped
@@ -80,12 +97,18 @@ class Experiment(Base):
 
 class ExternalFactor(Base):
     """Per-day context: sleep/menstrual phase/memo are manually entered (POST upserts),
-    pm25 is fetched on demand from AirKorea (POST /api/external-factors/{date}/sync-pm25)."""
+    pm25 is fetched on demand from AirKorea. humidity/uv_index are scaffolded for a
+    future 기상청(KMA) integration — nullable, nothing writes them yet."""
     __tablename__ = "external_factors"
 
     id = Column(Integer, primary_key=True)
-    date = Column(Date, nullable=False, unique=True, index=True)
+    profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
     sleep_hours = Column(Float, nullable=True)
     menstrual_phase = Column(String, nullable=True)
     memo = Column(String, nullable=True)
     pm25 = Column(Float, nullable=True)
+    humidity = Column(Float, nullable=True)
+    uv_index = Column(Float, nullable=True)
+
+    __table_args__ = (UniqueConstraint("profile_id", "date", name="uq_external_factor_profile_date"),)

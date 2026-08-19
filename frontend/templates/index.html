@@ -12,90 +12,132 @@
   <header class="topbar">
     <div class="brand">
       <span class="brandmark">ZONE</span>
-      <span class="brandsub">부위별 스킨케어 기록</span>
+      <span class="brandsub" id="brandsub">부위별 스킨케어 기록</span>
     </div>
-    <div class="iconrow">
-      <button class="iconbtn" id="suspectsBtn" title="의심 성분">⚠️ 의심성분</button>
-      <button class="iconbtn" id="factorsBtn" title="오늘의 외부 요인">📋 오늘 기록</button>
-      <button class="iconbtn" id="reportBtn" title="PDF 리포트">📄 리포트</button>
-    </div>
+    <button class="bellbtn" id="bellBtn" title="오늘 기록 알림">
+      🔔<span class="bellbadge" id="bellBadge" style="display:none"></span>
+    </button>
   </header>
 
   <div class="expbar" id="expbar" style="display:none"></div>
 
-  <div class="datebar">
-    <button id="prev" class="navbtn">‹</button>
-    <div class="dlabel" id="dlabel"></div>
-    <button id="next" class="navbtn">›</button>
-  </div>
+  <!-- ── 홈 화면 ── -->
+  <div class="screen" id="screenHome">
+    <div class="weathercard" id="weatherCard"></div>
 
-  <div class="tabs">
-    <button id="mApply" class="on">제품 바른 부위</button>
-    <button id="mTrouble">트러블 표시</button>
-  </div>
-
-  <div class="segrow" id="slotToggle">
-    <button data-slot="am" class="on">☀️ 아침</button>
-    <button data-slot="pm">🌙 저녁</button>
-  </div>
-  <div class="typeToggle" id="typeToggle" style="display:none">
-    {% for t in trouble_types %}
-    <button data-type="{{ t }}" class="{{ 'on' if loop.first else '' }}">{{ trouble_type_labels[t] }}</button>
-    {% endfor %}
-  </div>
-  <label class="ocrbtn" id="troubleAiTrigger" style="display:none">
-    📷 사진으로 AI 유형 판단 (베타)
-    <input type="file" accept="image/*" capture="environment" id="troubleAiFile" style="display:none">
-  </label>
-
-  <div class="hint" id="hint"></div>
-
-  <div class="face-card">
-    <svg id="face" viewBox="0 0 400 440">
-      <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
-
-      <path class="zone" data-z="forehead" d="M104,182 C112,108 152,82 200,82 C248,82 288,108 296,182 C255,158 145,158 104,182 Z"/>
-      <text class="zlabel" x="200" y="135">이마</text>
-
-      <path class="zone" data-z="rcheek" d="M101,196 C131,179 161,181 173,197 L173,291 C161,316 121,301 99,266 C93,241 95,216 101,196 Z"/>
-      <text class="zlabel" x="133" y="250">오른볼</text>
-
-      <path class="zone" data-z="lcheek" d="M299,196 C269,179 239,181 227,197 L227,291 C239,316 279,301 301,266 C307,241 305,216 299,196 Z"/>
-      <text class="zlabel" x="267" y="250">왼볼</text>
-
-      <path class="zone" data-z="nose" d="M200,186 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 Z"/>
-      <text class="zlabel" x="200" y="252">코</text>
-
-      <path class="zone" data-z="chin" d="M151,316 C171,309 229,309 249,316 C254,356 229,394 200,394 C171,394 146,356 151,316 Z"/>
-      <text class="zlabel" x="200" y="355">턱·입주변</text>
-
-      <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
-      <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
-      <g id="dots"></g>
-    </svg>
-  </div>
-
-  <div id="applyUI">
     <div class="sechead">
-      <h3>오늘 바른 제품</h3>
-      <span class="linkbtn" id="addProductBtn">+ 제품 추가</span>
+      <h3>오늘 바로 추천</h3>
     </div>
-    <div class="prods" id="prods"></div>
-    <div class="row">
-      <button class="btn ghost" id="same">이전과 같음</button>
-      <button class="btn ghost" id="clear">전부 지우기</button>
+    <div class="recorow" id="recoRow"></div>
+
+    <div class="sechead">
+      <h3>바로가기</h3>
+    </div>
+    <div class="quicklinks">
+      <button class="qlbtn" id="qlRecord">📝<span>오늘 기록</span></button>
+      <button class="qlbtn" id="qlSuspects">⚠️<span>의심성분</span></button>
+      <button class="qlbtn" id="qlExperiment">🧪<span>실험현황</span></button>
+      <button class="qlbtn" id="qlReport">📄<span>리포트</span></button>
     </div>
   </div>
 
-  <div class="row">
-    <button class="btn primary" id="analyze">🔍 의심 성분 분석</button>
+  <!-- ── 기록 화면 ── -->
+  <div class="screen" id="screenRecord" style="display:none">
+    <div class="datebar">
+      <button id="prev" class="navbtn">‹</button>
+      <div class="dlabel" id="dlabel"></div>
+      <button id="next" class="navbtn">›</button>
+    </div>
+
+    <div class="tabs">
+      <button id="mApply" class="on">제품 바른 부위</button>
+      <button id="mTrouble">트러블 표시</button>
+    </div>
+
+    <div class="segrow" id="slotToggle">
+      <button data-slot="am" class="on">☀️ 아침</button>
+      <button data-slot="pm">🌙 저녁</button>
+    </div>
+    <div class="typeToggle" id="typeToggle" style="display:none">
+      {% for t in trouble_types %}
+      <button data-type="{{ t }}" class="{{ 'on' if loop.first else '' }}">{{ trouble_type_labels[t] }}</button>
+      {% endfor %}
+    </div>
+    <label class="ocrbtn" id="troubleAiTrigger" style="display:none">
+      📷 사진으로 AI 유형 판단 (베타)
+      <input type="file" accept="image/*" capture="environment" id="troubleAiFile" style="display:none">
+    </label>
+
+    <div class="hint" id="hint"></div>
+
+    <div class="face-card">
+      <svg id="face" viewBox="0 0 400 440">
+        <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
+
+        <path class="zone" data-z="forehead" d="M104,182 C112,108 152,82 200,82 C248,82 288,108 296,182 C255,158 145,158 104,182 Z"/>
+        <text class="zlabel" x="200" y="135">이마</text>
+
+        <path class="zone" data-z="rcheek" d="M101,196 C131,179 161,181 173,197 L173,291 C161,316 121,301 99,266 C93,241 95,216 101,196 Z"/>
+        <text class="zlabel" x="133" y="250">오른볼</text>
+
+        <path class="zone" data-z="lcheek" d="M299,196 C269,179 239,181 227,197 L227,291 C239,316 279,301 301,266 C307,241 305,216 299,196 Z"/>
+        <text class="zlabel" x="267" y="250">왼볼</text>
+
+        <path class="zone" data-z="nose" d="M200,186 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 Z"/>
+        <text class="zlabel" x="200" y="252">코</text>
+
+        <path class="zone" data-z="chin" d="M151,316 C171,309 229,309 249,316 C254,356 229,394 200,394 C171,394 146,356 151,316 Z"/>
+        <text class="zlabel" x="200" y="355">턱·입주변</text>
+
+        <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
+        <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
+        <g id="dots"></g>
+      </svg>
+    </div>
+
+    <div id="applyUI">
+      <div class="sechead">
+        <h3>오늘 바른 제품</h3>
+        <span class="linkbtn" id="addProductBtn">+ 제품 추가</span>
+      </div>
+      <div class="prods" id="prods"></div>
+      <div class="row">
+        <button class="btn ghost" id="same">이전과 같음</button>
+        <button class="btn ghost" id="clear">전부 지우기</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="btn primary" id="analyze">🔍 의심 성분 분석</button>
+    </div>
   </div>
+
+  <!-- ── 마이 화면 ── -->
+  <div class="screen" id="screenMy" style="display:none">
+    <div class="profilecard">
+      <div class="profileavatar">👤</div>
+      <div class="profilename" id="myProfileName">-</div>
+      <button class="btn ghost" id="switchProfileBtn">프로필 전환</button>
+    </div>
+    <div class="sechead"><h3>관리</h3></div>
+    <div class="row"><button class="btn ghost" id="myFactorsBtn">📋 오늘의 외부 요인</button></div>
+    <div class="row"><button class="btn ghost" id="mySuspectsBtn">⚠️ 의심 성분 관리</button></div>
+    <div class="row"><button class="btn ghost" id="myReportBtn">📄 PDF 리포트</button></div>
+  </div>
+
+  <nav class="bottomnav">
+    <button class="navitem on" data-screen="home">🏠<span>홈</span></button>
+    <button class="navitem" id="navHistory">🗂️<span>히스토리</span></button>
+    <button class="navitem navadd" data-screen="record">＋</button>
+    <button class="navitem" data-screen="my">👤<span>마이</span></button>
+  </nav>
 
 </div>
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="modal" id="productModal"><div class="sheet" id="productSheet"></div></div>
 <div class="modal" id="miscModal"><div class="sheet" id="miscSheet"></div></div>
+<div class="modal" id="profileModal"><div class="sheet" id="profileSheet"></div></div>
 <div class="toastwrap" id="toastwrap"></div>
 
 <script>

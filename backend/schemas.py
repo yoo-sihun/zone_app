@@ -2,6 +2,18 @@ from datetime import date as Date
 from pydantic import BaseModel
 
 
+class ProfileIn(BaseModel):
+    name: str
+
+
+class ProfileOut(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class ProductIn(BaseModel):
     name: str
     ingredients: list[str]
@@ -97,6 +109,11 @@ class ExperimentResult(ExperimentOut):
     improved: bool
 
 
+class TodayStatus(BaseModel):
+    date: Date
+    logged: bool  # 오늘 도포 기록이 하나라도 있는지
+
+
 class ExternalFactorIn(BaseModel):
     date: Date
     sleep_hours: float | None = None
@@ -110,6 +127,8 @@ class ExternalFactorOut(BaseModel):
     menstrual_phase: str | None
     memo: str | None
     pm25: float | None = None
+    humidity: float | None = None
+    uv_index: float | None = None
 
     class Config:
         from_attributes = True

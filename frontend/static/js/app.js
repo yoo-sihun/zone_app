@@ -18,6 +18,10 @@ let activeExperiment = null;
 let selectedProductId = null;
 let dayData = { log: {}, dots: [] };
 let analysisTypeFilter = null;
+let currentScreen = 'home';
+
+let currentProfileId = localStorage.getItem('zone_profile_id') || null;
+let currentProfileName = localStorage.getItem('zone_profile_name') || '';
 
 function fmt(d){
   const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
@@ -26,10 +30,10 @@ function fmt(d){
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function api(path, opts = {}){
-  const res = await fetch(path, {
-    headers: opts.body && !(opts.body instanceof FormData) ? {'Content-Type': 'application/json'} : undefined,
-    ...opts,
-  });
+  const headers = {};
+  if(opts.body && !(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  if(currentProfileId) headers['X-Profile-Id'] = currentProfileId;
+  const res = await fetch(path, { ...opts, headers });
   if(!res.ok){
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || `요청 실패 (${res.status})`);
@@ -51,6 +55,159 @@ function toast(msg, kind='warn'){
 function showInteractionWarnings(warnings){
   (warnings || []).forEach(w => toast(`⚠ ${w.a} + ${w.b} — ${w.description}`, 'warn'));
 }
+
+// ══════════════════════════ 프로필 ══════════════════════════
+async function openProfilePicker(allowCancel){
+  const s = $('#profileSheet');
+  let list = [];
+  try { list = await fetch('/api/profiles').then(r => r.json()); } catch(e) { list = []; }
+  renderProfilePicker(list, allowCancel);
+  $('#profileModal').classList.add('show');
+}
+function renderProfilePicker(list, allowCancel){
+  const s = $('#profileSheet');
+  s.innerHTML = `
+    <h2>프로필 선택</h2>
+    <div class="sub">비밀번호 없이 프로필만 골라서 써요. 각자 기록이 따로 저장됩니다.</div>
+    <div class="suslist" id="profileList">
+      ${list.length ? list.map(p => `
+        <div class="susitem profileitem" data-pid="${p.id}" data-pname="${escapeHtml(p.name)}">
+          <span>👤 ${escapeHtml(p.name)}</span>
+        </div>`).join('') : '<div class="empty">아직 프로필이 없습니다. 아래에서 새로 만들어주세요.</div>'}
+    </div>
+    <div class="field" style="margin-top:16px">
+      <label>새 프로필 만들기</label>
+      <input id="newProfileInput" placeholder="이름 입력 (예: 민지)">
+    </div>
+    <div class="row"><button class="btn primary" id="createProfileBtn">만들고 시작하기</button></div>
+    ${allowCancel ? '<div class="row"><button class="btn ghost" onclick="closeProfileModal()">취소</button></div>' : ''}
+  `;
+  document.querySelectorAll('.profileitem').forEach(el => {
+    el.onclick = () => selectProfile(+el.dataset.pid, el.dataset.pname);
+  });
+  $('#createProfileBtn').onclick = async () => {
+    const name = $('#newProfileInput').value.trim();
+    if(!name){ alert('이름을 입력해주세요'); return; }
+    const p = await fetch('/api/profiles', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }),
+    }).then(r => r.json());
+    selectProfile(p.id, p.name);
+  };
+}
+function selectProfile(id, name){
+  currentProfileId = String(id);
+  currentProfileName = name;
+  localStorage.setItem('zone_profile_id', currentProfileId);
+  localStorage.setItem('zone_profile_name', currentProfileName);
+  $('#profileModal').classList.remove('show');
+  startApp();
+}
+function closeProfileModal(){ $('#profileModal').classList.remove('show'); }
+
+// ══════════════════════════ 화면 전환 ══════════════════════════
+function showScreen(name){
+  currentScreen = name;
+  document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
+  $(`#screen${name.charAt(0).toUpperCase()}${name.slice(1)}`).style.display = '';
+  document.querySelectorAll('.navitem[data-screen]').forEach(el => el.classList.toggle('on', el.dataset.screen === name));
+  if(name === 'home') loadHome();
+  if(name === 'my') loadMy();
+}
+document.querySelectorAll('.navitem[data-screen]').forEach(b => {
+  b.onclick = () => showScreen(b.dataset.screen);
+});
+$('#navHistory').onclick = () => openReportModal();
+
+// ══════════════════════════ 홈 화면 ══════════════════════════
+async function loadHome(){
+  await Promise.all([loadWeatherCard(), loadRecommendations()]);
+}
+async function loadWeatherCard(){
+  const el = $('#weatherCard');
+  const d = fmt(today);
+  let f = null;
+  try { f = await api(`/api/external-factors/${d}`); } catch(e) { f = null; }
+  const pm25 = f?.pm25;
+  const humidity = f?.humidity;
+  const uv = f?.uv_index;
+  el.innerHTML = `
+    <div class="weathertitle">오늘의 피부 날씨</div>
+    <div class="weathergrid">
+      <div class="weatheritem">
+        <div class="wlabel">미세먼지</div>
+        <div class="wvalue">${pm25 != null ? pm25 + ' ㎍/㎥' : '-'}</div>
+      </div>
+      <div class="weatheritem">
+        <div class="wlabel">습도</div>
+        <div class="wvalue">${humidity != null ? humidity + '%' : '준비 중'}</div>
+      </div>
+      <div class="weatheritem">
+        <div class="wlabel">자외선</div>
+        <div class="wvalue">${uv != null ? uv : '준비 중'}</div>
+      </div>
+    </div>
+    <button class="btn ghost small" id="syncWeatherBtn" type="button">미세먼지 동기화</button>
+  `;
+  $('#syncWeatherBtn').onclick = async () => {
+    try {
+      await api(`/api/external-factors/${d}/sync-pm25`, { method: 'POST' });
+      toast('미세먼지 정보를 갱신했어요', 'ok');
+      loadWeatherCard();
+    } catch(err){
+      toast(err.message, 'warn');
+    }
+  };
+}
+async function loadRecommendations(){
+  const row = $('#recoRow');
+  let list = [];
+  try { list = await api('/api/products/recommended'); } catch(e) { list = []; }
+  row.innerHTML = list.length ? list.map(p => `
+    <div class="recocard" data-rid="${p.id}">
+      <div class="reconame">${escapeHtml(p.name)}</div>
+      <div class="recoing">${p.ingredients.slice(0,3).map(escapeHtml).join(' · ')}</div>
+    </div>
+  `).join('') : '<div class="empty">오늘 등록된 제품을 다 바르셨거나, 아직 등록한 제품이 없어요.</div>';
+  document.querySelectorAll('.recocard').forEach(el => {
+    el.onclick = () => {
+      selectedProductId = +el.dataset.rid;
+      showScreen('record');
+      setMode('apply');
+      renderProds(); renderFace();
+    };
+  });
+}
+$('#qlRecord').onclick = () => showScreen('record');
+$('#qlSuspects').onclick = () => openSuspectsModal();
+$('#qlExperiment').onclick = () => {
+  if(!activeExperiment){ toast('진행 중인 실험이 없어요', 'warn'); return; }
+  openExpResultModal();
+};
+$('#qlReport').onclick = () => openReportModal();
+
+// ══════════════════════════ 마이 화면 ══════════════════════════
+function loadMy(){
+  $('#myProfileName').textContent = currentProfileName || '-';
+}
+$('#switchProfileBtn').onclick = () => openProfilePicker(true);
+$('#myFactorsBtn').onclick = () => openFactorsModal();
+$('#mySuspectsBtn').onclick = () => openSuspectsModal();
+$('#myReportBtn').onclick = () => openReportModal();
+
+// ══════════════════════════ 알림 벨 ══════════════════════════
+async function refreshBell(){
+  try {
+    const s = await api('/api/today-status');
+    $('#bellBadge').style.display = s.logged ? 'none' : 'block';
+  } catch(e){ /* ignore */ }
+}
+$('#bellBtn').onclick = async () => {
+  try {
+    const s = await api('/api/today-status');
+    if(s.logged) toast('오늘 기록 완료했어요 👍', 'ok');
+    else { toast('오늘 아직 기록 안 하셨어요 — 지금 기록해볼까요?', 'warn'); showScreen('record'); }
+  } catch(e){ /* ignore */ }
+};
 
 // ── 날짜 ──
 function dlabel(){
@@ -190,7 +347,7 @@ function renderFace(){
 
 document.querySelectorAll('.zone').forEach(z => {
   z.addEventListener('click', async e => {
-    if(mode !== 'apply') return;
+    if(currentScreen !== 'record' || mode !== 'apply') return;
     e.stopPropagation();
     if(!selectedProductId){ flash('먼저 제품을 고르세요'); return; }
     try {
@@ -201,6 +358,7 @@ document.querySelectorAll('.zone').forEach(z => {
         }),
       });
       showInteractionWarnings(r.warnings);
+      refreshBell();
     } catch(err){
       alert(err.message);
     }
@@ -209,7 +367,7 @@ document.querySelectorAll('.zone').forEach(z => {
 });
 
 svg.addEventListener('click', async e => {
-  if(mode !== 'trouble') return;
+  if(currentScreen !== 'record' || mode !== 'trouble') return;
   const pt = svg.createSVGPoint();
   pt.x = e.clientX; pt.y = e.clientY;
   const p = pt.matrixTransform(svg.getScreenCTM().inverse());
@@ -560,10 +718,23 @@ function openReportModal(){
       <button class="btn ghost" onclick="closeMisc()">닫기</button>
       <button class="btn primary" id="rDownloadBtn">다운로드</button>
     </div>`;
-  $('#rDownloadBtn').onclick = () => {
+  $('#rDownloadBtn').onclick = async () => {
     const start = $('#rStart').value, end = $('#rEnd').value;
     if(!start || !end){ alert('기간을 선택해주세요'); return; }
-    window.open(`/api/reports/pdf?start=${start}&end=${end}`, '_blank');
+    try {
+      const res = await fetch(`/api/reports/pdf?start=${start}&end=${end}`, {
+        headers: { 'X-Profile-Id': currentProfileId },
+      });
+      if(!res.ok) throw new Error('리포트 생성 실패');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `zone-report-${start}_${end}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch(err){
+      toast(err.message, 'warn');
+    }
   };
   $('#miscModal').classList.add('show');
 }
@@ -571,14 +742,31 @@ function openReportModal(){
 function closeMisc(){ $('#miscModal').classList.remove('show'); }
 $('#miscModal').onclick = e => { if(e.target.id === 'miscModal') closeMisc(); };
 
-$('#suspectsBtn').onclick = openSuspectsModal;
-$('#factorsBtn').onclick = openFactorsModal;
-$('#reportBtn').onclick = openReportModal;
-
-(async function init(){
+// ══════════════════════════ 시작 ══════════════════════════
+async function startApp(){
+  $('#brandsub').textContent = `${currentProfileName}님의 스킨케어 기록`;
   dlabel();
   await loadProducts();
   await loadDay();
   await loadActiveExperiment();
   setMode(mode);
+  showScreen('home');
+  refreshBell();
+}
+
+(async function init(){
+  if(currentProfileId){
+    // 저장된 프로필이 실제로 존재하는지 확인
+    try {
+      const list = await fetch('/api/profiles').then(r => r.json());
+      if(list.some(p => String(p.id) === currentProfileId)){
+        await startApp();
+        return;
+      }
+    } catch(e) { /* fall through to picker */ }
+    localStorage.removeItem('zone_profile_id');
+    localStorage.removeItem('zone_profile_name');
+    currentProfileId = null;
+  }
+  openProfilePicker(false);
 })();
