@@ -201,12 +201,23 @@ export function AppProvider({ children }) {
     setScreenState(name);
     setFocusedParentZone(null);
     if (name === "home") { loadWeather(); loadRecommendations(); }
-    if (name === "my") { /* no-op, uses profileName from state */ }
-    if (name === "history") loadHistory();
+    if (name === "analysis") loadHistory();
   }, [loadWeather, loadRecommendations, loadHistory]);
 
   const setMode = useCallback((m) => {
     setModeState(m);
+  }, []);
+
+  // 기록 화면 안에서 "트러블도 기록할까요?"로 진입하는 별도 화면 — 하단 탭엔 없고 기록 화면의 하위 흐름
+  const openTroubleScreen = useCallback(() => {
+    setScreenState("trouble");
+    setFocusedParentZone(null);
+    setModeState("trouble");
+  }, []);
+  const closeTroubleScreen = useCallback(() => {
+    setScreenState("record");
+    setFocusedParentZone(null);
+    setModeState("apply");
   }, []);
 
   // ── 줌 ──
@@ -241,9 +252,9 @@ export function AppProvider({ children }) {
     if (profileId) loadDay();
   }, [currentDate, profileId, loadDay]);
 
-  // 히스토리 화면에 있는 동안 기간(historyDays)이 바뀌면 다시 불러옴
+  // 분석 화면(히스토리 포함)에 있는 동안 기간(historyDays)이 바뀌면 다시 불러옴
   useEffect(() => {
-    if (profileId && screen === "history") loadHistory();
+    if (profileId && screen === "analysis") loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyDays, profileId]);
 
@@ -410,6 +421,7 @@ export function AppProvider({ children }) {
     closeProfileModal: () => setProfileModalOpen(false),
     deleteCurrentProfile,
     screen, setScreen,
+    openTroubleScreen, closeTroubleScreen,
     mode, setMode,
     slot, setSlot,
     troubleType, setTroubleType,

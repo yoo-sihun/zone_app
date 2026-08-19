@@ -4,23 +4,25 @@ import { useApp } from "@/lib/AppContext";
 
 const ITEMS = [
   { key: "home", icon: "🏠", label: "홈" },
-  { key: "history", icon: "🗂️", label: "히스토리" },
-  { key: "record", icon: "+", label: null, add: true },
-  { key: "my", icon: "👤", label: "마이" },
+  { key: "record", icon: "📝", label: "기록" },
+  { key: "analysis", icon: "🔍", label: "분석" },
+  { key: "vanity", icon: "🧴", label: "화장대" },
+  { key: "my", icon: "👤", label: "MY" },
 ];
 
 export default function BottomNav() {
   const { screen, setScreen } = useApp();
+  const active = screen === "trouble" ? "record" : screen;
   return (
     <nav className="bottomnav">
       {ITEMS.map((it) => (
         <button
           key={it.key}
-          className={`navitem ${screen === it.key ? "on" : ""} ${it.add ? "navadd" : ""}`.trim()}
+          className={`navitem ${active === it.key ? "on" : ""}`}
           onClick={() => setScreen(it.key)}
         >
           <span className="navicon">{it.icon}</span>
-          {it.label && <span>{it.label}</span>}
+          <span>{it.label}</span>
         </button>
       ))}
     </nav>
