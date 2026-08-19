@@ -10,7 +10,7 @@ export default function RecordScreen() {
     config, slot, setSlot,
     setMode,
     focusedParentZone, hint,
-    products, selectedProductId, setSelectedProductId,
+    products, selectedProductIds, toggleProductSelection,
     deleteProduct, openProductModal,
     copyPrevious, clearDay, openTroubleScreen, flash,
     dayData,
@@ -23,15 +23,16 @@ export default function RecordScreen() {
 
   function hintText() {
     if (hint) return hint;
-    if (!selectedProductId) return "아래에서 제품을 선택한 후 얼굴을 탭해 상세 부위를 지정하세요.";
+    if (!selectedProductIds.length) return "아래에서 제품을 선택한 후(여러 개 가능) 얼굴을 탭해 상세 부위를 지정하세요.";
+    const countLabel = selectedProductIds.length > 1 ? `제품 ${selectedProductIds.length}개 선택됨. ` : "";
     return focusedParentZone
-      ? `세부 영역(${ZONE_LABELS[focusedParentZone]})을 탭하여 제품을 바르거나 지우세요.`
-      : "얼굴 부위를 탭하면 세부 영역이 확대됩니다.";
+      ? `${countLabel}세부 영역(${ZONE_LABELS[focusedParentZone]})을 탭하여 제품을 바르거나 지우세요.`
+      : `${countLabel}얼굴 부위를 탭하면 세부 영역이 확대됩니다.`;
   }
 
   function onProdClick(p) {
     if (p.locked) { flash("실험 진행 중이라 잠긴 제품입니다"); return; }
-    setSelectedProductId(selectedProductId === p.id ? null : p.id);
+    toggleProductSelection(p.id);
   }
 
   async function onDeleteProduct(e, id) {
@@ -121,7 +122,8 @@ export default function RecordScreen() {
 
         <div className="prods">
           {products.length ? products.map((p) => (
-            <div key={p.id} className={`prod ${selectedProductId === p.id ? "on" : ""} ${p.locked ? "locked" : ""}`} onClick={() => onProdClick(p)}>
+            <div key={p.id} className={`prod ${selectedProductIds.includes(p.id) ? "on" : ""} ${p.locked ? "locked" : ""}`} onClick={() => onProdClick(p)}>
+              <div className={`prod-checkbox ${selectedProductIds.includes(p.id) ? "checked" : ""}`}>{selectedProductIds.includes(p.id) ? "✓" : ""}</div>
               <div className="swatch" />
               <div style={{ flex: 1 }}>
                 <div className="pname">{p.name}{p.locked ? " 🔒" : ""}</div>

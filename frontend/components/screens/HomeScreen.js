@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 
 export default function HomeScreen() {
   const {
-    weather, loadWeather, recommendations, setScreen, setSelectedProductId,
+    weather, loadWeather, recommendations, setScreen, setSelectedProductIds,
     setMode, openSuspectsModal, openReportModal, activeExperiment, openExpResultModal,
     pushToast,
   } = useApp();
@@ -31,15 +31,37 @@ export default function HomeScreen() {
   }
 
   function pickRecommendation(id) {
-    setSelectedProductId(id);
+    setSelectedProductIds([id]);
     setScreen("record");
     setMode("apply");
   }
 
   return (
     <div className="screen" id="screenHome">
-      <div className="weathercard">
+      <div className="weathercard" style={{ position: 'relative' }}>
         <div className="weathertitle">오늘의 피부 날씨</div>
+        <button 
+          className="weather-sync-icon-btn" 
+          type="button" 
+          onClick={onSyncWeather} 
+          title="날씨 동기화"
+          style={{
+            position: 'absolute',
+            top: '18px',
+            right: '18px',
+            background: 'none',
+            border: 'none',
+            fontSize: '16px',
+            cursor: 'pointer',
+            padding: '4px',
+            borderRadius: '50%',
+            lineHeight: 1,
+            color: 'var(--text-faint)',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          🔄
+        </button>
         <div className="weathergrid">
           <div className="weatheritem">
             <div className="wlabel">미세먼지</div>
@@ -54,7 +76,6 @@ export default function HomeScreen() {
             <div className="wvalue">{weather?.uv_index != null ? weather.uv_index : "준비 중"}</div>
           </div>
         </div>
-        <button className="btn ghost small" type="button" onClick={onSyncWeather}>날씨 동기화</button>
       </div>
 
       <div className="sechead"><h3>오늘의 스킨케어 추천</h3></div>

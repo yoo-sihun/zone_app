@@ -5,7 +5,7 @@ import { useApp } from "@/lib/AppContext";
 
 export default function FaceRecord() {
   const {
-    config, mode, slot, selectedProductId, focusedParentZone, dayData,
+    config, mode, slot, selectedProductIds, focusedParentZone, dayData,
     zoomTo, zoomOut, toggleLog, placeDot, deleteDot,
   } = useApp();
   const svgRef = useRef(null);
@@ -60,7 +60,7 @@ export default function FaceRecord() {
 
   function isApplied(zone) {
     const slotIds = (dayData.log[zone] && dayData.log[zone][slot]) || [];
-    return !!(selectedProductId && slotIds.includes(selectedProductId));
+    return selectedProductIds.some((id) => slotIds.includes(id));
   }
 
   function zoneClass(zone) {
@@ -139,16 +139,6 @@ export default function FaceRecord() {
             ))}
           </g>
         </svg>
-
-        {zoomedOut && (
-          <>
-            <button className="hotspot-btn forehead" onClick={(e) => { e.stopPropagation(); zoomTo("forehead"); }}>이마 <span>+</span></button>
-            <button className="hotspot-btn rcheek" onClick={(e) => { e.stopPropagation(); zoomTo("rcheek"); }}>오른쪽 볼 <span>+</span></button>
-            <button className="hotspot-btn lcheek" onClick={(e) => { e.stopPropagation(); zoomTo("lcheek"); }}>왼쪽 볼 <span>+</span></button>
-            <button className="hotspot-btn nose" onClick={(e) => { e.stopPropagation(); zoomTo("nose"); }}>코 <span>+</span></button>
-            <button className="hotspot-btn chin" onClick={(e) => { e.stopPropagation(); zoomTo("chin"); }}>턱 <span>+</span></button>
-          </>
-        )}
       </div>
     </div>
   );

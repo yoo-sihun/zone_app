@@ -45,7 +45,7 @@ export function AppProvider({ children }) {
 
   // ── 데이터 ──
   const [products, setProducts] = useState([]);
-  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [suspects, setSuspects] = useState([]);
   const [activeExperiment, setActiveExperiment] = useState(null);
   const [dayData, setDayData] = useState({ log: {}, dots: [] });
@@ -264,21 +264,34 @@ export function AppProvider({ children }) {
   }, [historyDays, profileId]);
 
   // ── 얼굴 탭 액션 (제품 도포 토글 / 트러블 점 찍기) ──
+  // 선택된 제품 여러 개를 순차 처리 — 같은 배치 안에서 상성 경고가 서로를 올바르게 반영하도록 Promise.all 대신 순서대로 await
   const toggleLog = useCallback(async (zone) => {
-    if (!selectedProductId) { flash("먼저 제품을 고르세요"); return; }
+    if (!selectedProductIds.length) { flash("먼저 제품을 고르세요"); return; }
+    let appliedCount = 0, removedCount = 0;
+    const allWarnings = [];
     try {
-      const r = await api("/api/log/toggle", {
-        method: "POST",
-        body: JSON.stringify({ date: fmt(currentDate), zone, time_slot: slot, product_id: selectedProductId }),
-      });
-      pushToast(r.applied ? "저장됐어요 ✓" : "지웠어요", "ok");
-      showInteractionWarnings(r.warnings);
+      for (const productId of selectedProductIds) {
+        const r = await api("/api/log/toggle", {
+          method: "POST",
+          body: JSON.stringify({ date: fmt(currentDate), zone, time_slot: slot, product_id: productId }),
+        });
+        if (r.applied) appliedCount++; else removedCount++;
+        if (r.warnings && r.warnings.length) allWarnings.push(...r.warnings);
+      }
+      if (appliedCount && removedCount) pushToast(`${appliedCount}개 저장, ${removedCount}개 지웠어요`, "ok");
+      else if (appliedCount) pushToast(appliedCount > 1 ? `${appliedCount}개 저장됐어요 ✓` : "저장됐어요 ✓", "ok");
+      else pushToast(removedCount > 1 ? `${removedCount}개 지웠어요` : "지웠어요", "ok");
+      showInteractionWarnings(allWarnings);
       refreshBell();
     } catch (err) {
       alert(err.message);
     }
     await loadDay();
-  }, [selectedProductId, currentDate, slot, flash, pushToast, showInteractionWarnings, refreshBell, loadDay]);
+  }, [selectedProductIds, currentDate, slot, flash, pushToast, showInteractionWarnings, refreshBell, loadDay]);
+
+  const toggleProductSelection = useCallback((id) => {
+    setSelectedProductIds((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  }, []);
 
   const placeDot = useCallback(async (zone, x, y) => {
     await api("/api/dots", {
@@ -311,10 +324,10 @@ export function AppProvider({ children }) {
 
   const deleteProduct = useCallback(async (id) => {
     await api(`/api/products/${id}`, { method: "DELETE" });
-    if (selectedProductId === id) setSelectedProductId(null);
+    setSelectedProductIds((ids) => ids.filter((x) => x !== id));
     await loadProducts();
     await loadDay();
-  }, [selectedProductId, loadProducts, loadDay]);
+  }, [loadProducts, loadDay]);
 
   const copyPrevious = useCallback(async () => {
     const r = await api(`/api/log/copy-previous?day=${fmt(currentDate)}`, { method: "POST" });
@@ -432,7 +445,7 @@ export function AppProvider({ children }) {
     troubleType, setTroubleType,
     focusedParentZone, zoomTo, zoomOut,
     currentDate, goPrevDay, goNextDay, goToDate,
-    products, selectedProductId, setSelectedProductId,
+    products, selectedProductIds, setSelectedProductIds, toggleProductSelection,
     suspects, activeExperiment,
     dayData,
     analysisTypeFilter,
