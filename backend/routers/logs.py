@@ -84,10 +84,37 @@ def copy_previous(day: Date, db: Session = Depends(get_db)):
     prev_day = day - timedelta(days=1)
     prev_entries = db.query(DailyLog).filter(DailyLog.date == prev_day).all()
     db.query(DailyLog).filter(DailyLog.date == day).delete()
+
+    locked_ing = locked_ingredient(db, day)
+    products = {p.id: p for p in db.query(Product).all()}
+
+    skipped: list[str] = []
+    copied: list[tuple[str, str]] = []  # (zone, time_slot) pairs actually written
     for e in prev_entries:
+        product = products.get(e.product_id)
+        if locked_ing and product and locked_ing in product.ingredients:
+            skipped.append(product.name)
+            continue
         db.add(DailyLog(date=day, zone=e.zone, time_slot=e.time_slot, product_id=e.product_id))
+        copied.append((e.zone, e.time_slot))
     db.commit()
-    return {"ok": True}
+
+    # 복사된 각 부위+시간대 조합에 대해서도 toggle과 동일하게 성분 상성 체크
+    warnings = []
+    for zone, time_slot in set(copied):
+        same_slot_entries = (
+            db.query(DailyLog)
+            .filter(DailyLog.date == day, DailyLog.zone == zone, DailyLog.time_slot == time_slot)
+            .all()
+        )
+        ingredient_set: set[str] = set()
+        for se in same_slot_entries:
+            p = products.get(se.product_id)
+            if p:
+                ingredient_set.update(p.ingredients)
+        warnings.extend(check_interactions(ingredient_set))
+
+    return {"ok": True, "skipped": skipped, "warnings": warnings}
 
 
 @router.delete("/log/{day}")

@@ -89,7 +89,7 @@ POST   /api/products/ocr        (multipart image) → {name, ingredients}
 
 GET    /api/day/{date}          → {date, log: {zone: {am:[product_id], pm:[product_id]}}, dots: [{id,zone,type,x,y}]}
 POST   /api/log/toggle          {date, zone, time_slot, product_id} → {applied, warnings}  -- 있으면 삭제(warnings 없음), 없으면 추가하고 같은 날짜/부위/시간대 성분 조합 상성 경고 반환. 실험 중인 성분이 든 제품을 새로 추가하려 하면 400
-POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사 (time_slot 포함)
+POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사 (time_slot 포함) → {ok, skipped: [제품명], warnings}. 실험 중인 성분이 든 제품은 복사에서 자동 제외되고 skipped에 표시됨, 나머지에 대해 성분 상성 체크도 toggle과 동일하게 수행
 DELETE /api/log/{date}
 
 POST   /api/dots                {date, zone, type, x, y}
