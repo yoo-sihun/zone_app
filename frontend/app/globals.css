@@ -1,17 +1,18 @@
 :root {
-  --bg: #F8FAFC;          /* Slate 50 - clean background */
+  --bg: #F8F7FC;          /* 라벤더 톤 배경 */
   --surface: #FFFFFF;     /* White - cards and panels */
-  --surface-alt: #F1F5F9; /* Slate 100 - secondary container background */
-  --border: #E2E8F0;      /* Slate 200 - elegant thin borders */
-  --text: #0F172A;        /* Slate 900 - high contrast text */
-  --text-muted: #475569;  /* Slate 600 - secondary descriptions */
-  --text-faint: #94A3B8;  /* Slate 400 - placeholders and indicators */
+  --surface-alt: #F3F1FB; /* 연보라 - secondary container background */
+  --border: #E7E3F5;      /* 연보라 보더 */
+  --text: #201B37;        /* 진한 남보라 - high contrast text */
+  --text-muted: #6B647F;  /* 회보라 - secondary descriptions */
+  --text-faint: #A39CB8;  /* 옅은 회보라 - placeholders and indicators */
 
-  /* Healthcare Teal Palette */
-  --teal: #0D9488;        /* Teal 600 */
-  --teal-dark: #0F766E;   /* Teal 700 */
-  --teal-light: #F0FDFA;  /* Teal 50 */
-  --teal-border: #CCFBF1; /* Teal 100 */
+  /* Primary Purple Palette (변수명은 --teal 그대로 유지 — 전체 앱에서 이 변수를 참조하는 곳이 많아서
+     값만 보라로 바꿈, 이름 바꾸려면 모든 참조처를 다 고쳐야 해서 굳이 안 함) */
+  --teal: #7C6FE8;        /* 메인 포인트 컬러 */
+  --teal-dark: #6355C9;   /* hover/pressed */
+  --teal-light: #F3F1FD;  /* 연한 배경 틴트 */
+  --teal-border: #E4DFFB; /* 연한 보더/배지 배경 */
 
   /* Trouble Types & Alerts */
   --coral: #EF4444;       /* Red 500 - Pustule */
@@ -79,7 +80,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.1em;
   color: var(--teal);
-  background: linear-gradient(135deg, var(--teal), #06b6d4);
+  background: linear-gradient(135deg, var(--teal), #A78BFA);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -291,7 +292,17 @@ body {
   border-radius: 12px;
   padding: 14px 6px;
 }
-.analysis-step-icon { font-size: 22px; margin-bottom: 6px; }
+.analysis-step-icon {
+  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 6px;
+}
 .analysis-step-label { font-size: 11px; font-weight: 700; color: var(--text-muted); }
 
 /* 화장대 화면 빈 상태 */
@@ -303,7 +314,17 @@ body {
   border-radius: 16px;
   margin-bottom: 16px;
 }
-.vanity-empty-icon { font-size: 40px; margin-bottom: 10px; }
+.vanity-empty-icon {
+  font-size: 36px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
 .vanity-empty h3 { margin-bottom: 6px; }
 
 /* 트러블 기록 화면의 외부/생활 요인 (2x2) */
@@ -403,7 +424,14 @@ body {
 }
 
 .qlbtn-icon {
-  font-size: 20px;
+  font-size: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .qlbtn span {
@@ -519,7 +547,7 @@ body {
   font-size: 12px;
   font-weight: 700;
   padding: 10px 4px;
-  border-radius: 12px;
+  border-radius: 18px;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s ease;
@@ -647,7 +675,7 @@ body {
 }
 
 .face-svg.zoomed-out .zone-group:hover .zone.applied {
-  fill: #CCFBF1; /* Teal 100 */
+  fill: var(--teal-border);
 }
 
 .face-svg.zoomed-out .zone-group .sub-label {
@@ -902,7 +930,7 @@ body {
 .btn {
   flex: 1;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: 999px;
   border: 0;
   font-size: 14px;
   font-weight: 700;
@@ -1293,8 +1321,16 @@ body {
 }
 
 .menu-icon {
-  font-size: 20px;
+  font-size: 18px;
   margin-right: 12px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .menu-title {
