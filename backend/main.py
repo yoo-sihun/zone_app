@@ -4,10 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
@@ -29,8 +27,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="ZONE")
 
-# 프론트를 Vercel에 별도 배포할 경우 이 origin에서 오는 요청을 허용해야 함
-# (같은 오리진에서 서빙되는 지금 구조에선 굳이 필요 없지만, 분리 배포 대비 항상 켜둠)
+# 프론트(frontend/, Vercel에 별도 배포)가 다른 오리진에서 이 API를 호출하므로 CORS 필요
 CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -38,9 +35,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
-templates = Jinja2Templates(directory="frontend/templates")
 
 app.include_router(profiles_router.router)
 app.include_router(products_router.router)
@@ -53,8 +47,8 @@ app.include_router(history_router.router)
 
 
 @app.get("/")
-def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+def index():
+    return {"service": "ZONE API", "docs": "/docs", "health": "/health"}
 
 
 @app.get("/api/config")
