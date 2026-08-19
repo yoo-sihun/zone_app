@@ -14,6 +14,18 @@ const STEPS = [
 export default function AnalysisScreen() {
   const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, config } = useApp();
   const [expResult, setExpResult] = useState(null);
+  const [trackInfo, setTrackInfo] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api("/api/analysis");
+        setTrackInfo({ days_tracked: res.days_tracked, confidence: res.confidence });
+      } catch (e) {
+        setTrackInfo(null);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (activeExperiment) {
@@ -117,6 +129,14 @@ export default function AnalysisScreen() {
 
   return (
     <div className="screen" id="screenAnalysis">
+      {trackInfo && (
+        <div className="track-badge-row">
+          <span className={`track-badge ${trackInfo.confidence}`}>
+            기록 {trackInfo.days_tracked}일차 / 최소 3일 필요
+          </span>
+        </div>
+      )}
+
       <div className="analysis-hero">
         <span className="chip on" style={{ display: "inline-block", marginBottom: 10 }}>✨ AI 원인 분석</span>
         <h2 style={{ marginBottom: 4, fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>내 피부 트러블의<br />진짜 원인은 무엇일까?</h2>

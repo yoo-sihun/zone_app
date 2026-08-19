@@ -396,6 +396,25 @@ body {
 }
 .today-cta-card .linkbtn { color: var(--teal-dark); text-decoration: underline; }
 
+/* 분석 화면 상단 신뢰도 배지 (기록 N일차 / 최소 3일 필요) */
+.track-badge-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.track-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+}
+.track-badge.low { background: #FEF2F2; border-color: #FECACA; color: #B91C1C; }
+.track-badge.medium { background: var(--teal-light); border-color: var(--teal-border); color: var(--teal-dark); }
+.track-badge.high { background: var(--green-light); border-color: var(--green-border); color: #047857; }
+
 /* 분석 화면 진입 카드 */
 .analysis-hero {
   text-align: center;

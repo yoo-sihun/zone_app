@@ -21,14 +21,16 @@
 ---
 
 ## 0. 핵심 분석 로직 (실제 구현, [backend/analysis.py](backend/analysis.py))
-- `analyze(db)`:
-  1. `trouble_dots`에서 등장한 부위를 `bad_zones`, 나머지 4부위 중 남은 걸 `good_zones`로 나눔
-  2. 각 트러블 발생일마다 해당 부위에 `LAG_DAYS`(기본 3일) 이내 발린 제품들의 성분을 집계(`hits`)
-  3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
-  4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
-  5. 응답에 상황별 안내 문구(`message`)도 같이 반환 — 트러블 기록 없음 / 대조군(안 난 부위) 없음 / 겹치는 성분 없음 / 기록 기간이 `LAG_DAYS`보다 짧음 / 정상적으로 N일치 분석함, 5가지 상태를 서버에서 판단해서 문자열로 내려줌. 프론트는 이 문구를 그대로 표시하면 되고, "데이터 충분한지" 판단 로직을 프론트에서 다시 만들 필요 없음.
-- **`suspects` 순위에 AI 재정렬이 한 단계 더 붙음** — `analyze()` 자체는 여전히 순수 통계(빈도순)만 계산하고, `backend/main.py`의 `/api/analysis` 라우트가 그 결과를 `ai/rank_suspects.py`의 `rank_suspects()`에 넘겨서 최종 순서를 정함. 이유: 빈도순으로만 정렬하면 정제수·글리세린처럼 거의 모든 제품에 들어가는 무자극 베이스 성분이 단순히 자주 쓰였다는 이유로 항상 1위로 올라오는 편향이 있음 — AI가 성분 지식(레티놀/AHA·BHA/프래그런스 등 자극 성분은 올리고, 베이스 성분은 내림)으로 이 편향을 보정함. 원본 통계(`count`/`zones`/`time_slots`)는 그대로 유지되고 순서와 `ai_reason`(성분별 한 줄 설명)만 추가/변경됨. OpenAI 호출 실패 시(키 없음, 레이트리밋 등) 예외를 전부 삼키고 원래 빈도순 그대로 폴백함(`ai_ranked: false`) — 핵심 분석 기능이 AI 장애로 죽지 않게 함.
-- **서브존/상위부위 도포 기록 매칭 버그 수정됨** — `analyze()`의 `_related_zones()` 헬퍼로 트러블 부위와 실제 도포 기록 조회 둘 다 "자신 + 상위부위(서브존이면) + 모든 서브존(상위부위면)"을 확장해서 비교함. 예전엔 `bad_zones`/`good_zones` 판정만 이렇게 확장하고, 정작 "그 부위에 뭘 발랐는지" 찾는 매칭은 `DailyLog.zone == 트러블.zone` 완전 일치만 봐서 — 트러블은 서브존에, 도포는 상위부위에(또는 반대로) 기록된 경우 서로 못 찾는 버그가 있었음. 데모 데이터 만들다가 실제로 걸려서 발견·수정함.
+- `analyze(db)` — **5단계 파이프라인**:
+  1. **부위 3분할**(`_bad_zone_set_for_dot()`): 트러블 찍힌 부위를 `bad_zones`(자신 + 서브존이면 상위부위 + 상위부위면 모든 서브존)로, 그 부위의 형제 서브존(같은 상위부위의 다른 서브존)을 `neutral_zones`로, 나머지를 `good_zones`로 나눔. 형제 서브존을 Neutral로 따로 빼는 이유: 예전엔 이걸 `bad_zones`에 뭉쳐서 "대조군 오염"이 있었음(왼쪽 이마 트러블 시 오른쪽 이마까지 bad 취급) — 지금은 아예 계산에서 제외해서 bad에도 good에도 안 들어감.
+  2. **기초 무해 용매 완전 배제**(`STOPWORD_INGREDIENTS`): 정제수·글리세린·부틸렌글라이콜 등은 전성분 순위와 무관하게 애초에 집계 대상에서 빠짐(부분 일치로 판정).
+  3. **도포 노출 비율(exposure_ratio) 점수화**: 각 성분마다 `bad_zones에서 트러블 발생일 기준 LAG_DAYS(기본 3일) 이내 쓰인 횟수 / 전체 기간·전체 부위에서 쓰인 총 횟수`를 계산. 예전엔 `good_zones`에 한 번이라도 쓰인 성분은 통째로 제외했는데(binary safe-list), 그러면 정상 부위에 실수로 한 번 스친 성분이 억울하게 완전 삭제되는 문제(False Safe)가 있었음 — 지금은 비율로 깎일 뿐 완전히 사라지지 않음.
+  4. **전성분 순서 가중치 × 성분 고유 위험 계수(α)**: `_order_weight()`가 전성분 목록에서 앞쪽(고농도)일수록 1.0에 가깝고 뒤로 갈수록 0.3까지 낮아지는 가중치를 매김. `INGREDIENT_RISK_ALPHA`가 레티놀/살리실산/AHA·BHA/향료/변성알코올 등 자극·알레르기 유발이 잘 알려진 성분에 2.0~3.0의 배수를 매김(그 외는 기본 1.0). 최종 `score = count × exposure_ratio × risk_alpha × order_weight`로 계산해 내림차순 정렬.
+  5. **화학적 상성 충돌 감지**: 같은 날짜·부위·시간대에 같이 발린 성분 조합을 `interactions.py`의 `check_interactions()`(기존 도포-토글 경고와 같은 정적 테이블)로 검사해서, 그 의심 성분에 해당하는 충돌이 있으면 `collision_warnings`로 붙임.
+  - 응답에 상황별 안내 문구(`message`)도 같이 반환 — 트러블 기록 없음 / 대조군(안 난 부위) 없음 / 겹치는 성분 없음 / 정상적으로 분석함, 서버에서 판단해서 문자열로 내려줌. 프론트는 이 문구를 그대로 표시하면 되고, "데이터 충분한지" 판단 로직을 프론트에서 다시 만들 필요 없음.
+- **신뢰도 등급**(`confidence`) — 기록 일수(`days_tracked`, 트러블/도포 기록 중 가장 이른 날짜 기준)로 `low`(3일 미만) / `medium`(3~6일) / `high`(7일 이상) 셋 중 하나를 응답에 같이 내려줌. 각 등급별 안내 문구는 `confidence_message`. `days_tracked`/`confidence`는 프론트(`AnalysisScreen.js`)가 모달을 열기 전에도 상단 배지("기록 N일차 / 최소 3일 필요")로 미리 보여주려고 화면 진입 시 `GET /api/analysis`를 한 번 가볍게 호출해서 씀.
+- **`suspects` 순위에 AI 재정렬이 한 단계 더 붙음** — `analyze()`가 위 5단계로 계산한 `score` 기준 순위를, `backend/main.py`의 `/api/analysis` 라우트가 `ai/rank_suspects.py`의 `rank_suspects()`에 한 번 더 넘겨서 최종 순서를 정함(성분 지식 기반 추가 보정 + `ai_reason` 한 줄 설명 부여). OpenAI 호출 실패 시(키 없음, 레이트리밋 등) 예외를 전부 삼키고 `score` 기준 순서 그대로 폴백함(`ai_ranked: false`) — 핵심 분석 기능이 AI 장애로 죽지 않게 함.
+- **서브존/상위부위 도포 기록 매칭 버그 수정됨** — `analyze()`의 `_related_zones()` 헬퍼(범용, `products.py`의 추천 필터 등에서도 씀)로 "같은 물리적 영역"을 자신 + 상위부위(서브존이면) + 모든 서브존(상위부위면)으로 확장해서 비교함. 예전엔 `bad_zones`/`good_zones` 판정만 이렇게 확장하고, 정작 "그 부위에 뭘 발랐는지" 찾는 매칭은 `DailyLog.zone == 트러블.zone` 완전 일치만 봐서 — 트러블은 서브존에, 도포는 상위부위에(또는 반대로) 기록된 경우 서로 못 찾는 버그가 있었음. 데모 데이터 만들다가 실제로 걸려서 발견·수정함. (bad/neutral/good 3분할용으로는 형제 서브존을 bad로 안 뭉치는 별도 헬퍼 `_bad_zone_set_for_dot()`을 씀 — 위 참고.)
 - **외부요인 상관관계 분석**(`_external_factor_insight()`) — `analyze()` 응답의 `external_insight` 필드. 트러블 난 날들의 평균 미세먼지/습도/자외선을 그 외 기록 있는 날(트러블 없던 날) 평균과 비교해서, 15% 이상 차이 나면 한 줄 문구로 알려줌(예: "트러블 난 날은 미세먼지가 평소보다 343% 높았어요"). 양쪽 다 최소 2일치 데이터 필요 — 부족하면 `null`(프론트는 그 항목을 그냥 안 보여줌). 상관관계일 뿐 인과관계 판단 아님.
 - 아직 없는 것: 바코드 스캔 — §6 "향후 아이디어" 참고.
 
@@ -127,7 +129,7 @@ POST   /api/dots                {date, zone, type, x, y}
 POST   /api/dots/classify       (multipart image) → {type: comedonal|papule|pustule|redness|null}  -- AI 추천값, null이면 판단 실패(사용자가 직접 선택해야 함)
 DELETE /api/dots/{id}
 
-GET    /api/analysis            → analyze() 결과 + AI 재정렬(§0). ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots/ai_reason 필드 포함, 응답에 상황별 안내 message + ai_ranked(bool) + external_insight(string|null, 트러블 난 날 vs 평상시 미세먼지/습도/자외선 비교, §0) 필드 포함
+GET    /api/analysis            → analyze() 결과(5단계 파이프라인, §0) + AI 재정렬. ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots/exposure_ratio/risk_alpha/order_weight/score/collision_warnings/ai_reason 필드 포함, 응답에 neutral_zones + 상황별 안내 message + confidence(low|medium|high)/confidence_message + days_tracked + ai_ranked(bool) + external_insight(string|null, 트러블 난 날 vs 평상시 미세먼지/습도/자외선 비교, §0) 필드 포함
 
 GET    /api/suspects            → [{id, ingredient}]
 POST   /api/suspects            {ingredient} -- 이미 있으면 그냥 기존 것 반환(idempotent)

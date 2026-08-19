@@ -32,12 +32,23 @@ export default function AnalysisModal() {
     </div>
   );
 
+  const confidenceBanner = r.confidence === "low" && (
+    <div className="warning-alert-card" style={{ marginBottom: 12 }}>
+      <span className="warning-alert-icon">⚠️</span>
+      <div className="warning-alert-content">
+        <span className="warning-alert-title">데이터가 아직 부족해요</span>
+        <span className="warning-alert-desc">{r.confidence_message}</span>
+      </div>
+    </div>
+  );
+
   if (!r.events || !r.suspects.length) {
     return (
       <div className="modal show" onClick={(e) => { if (e.target === e.currentTarget) closeAnalysisModal(); }}>
         <div className="sheet">
           <h2>{!r.events ? "아직 분석할 게 없습니다" : "겹치는 성분을 못 찾았습니다"}</h2>
           {typeChips}
+          {confidenceBanner}
           <div className="empty">{r.message}</div>
           {r.external_insight && <div className="sub">🌫️ {r.external_insight}</div>}
           <div className="row"><button className="btn ghost" onClick={closeAnalysisModal}>닫기</button></div>
@@ -54,7 +65,14 @@ export default function AnalysisModal() {
       <div className="sheet">
         <h2>분석 대조 결과</h2>
         {typeChips}
-        <div className="sub">{r.message}</div>
+        {confidenceBanner}
+        <div className="sub">
+          {r.message}
+          {" "}
+          <span className={`track-badge ${r.confidence}`} style={{ marginLeft: 4 }}>
+            신뢰도 {r.confidence === "low" ? "낮음" : r.confidence === "high" ? "최고" : "기본"}
+          </span>
+        </div>
         <div className="sub">
           트러블 {r.events}건 · 발생 부위 {r.bad_zones.map((z) => ZONE_LABELS[z]).join(", ")}
           {" "}· 비교군 {r.good_zones.map((z) => ZONE_LABELS[z]).join(", ") || "없음"}
@@ -64,20 +82,20 @@ export default function AnalysisModal() {
         )}
         {r.external_insight && <div className="sub">🌫️ {r.external_insight}</div>}
         {top.map((s0, i) => {
-          const troubleRate = Math.min(100, 65 + (s0.count * 7));
-          const normalRate = Math.max(12, Math.min(38, 30 - (s0.count * 3)));
+          const troubleRate = Math.round((s0.exposure_ratio ?? 0) * 100);
+          const otherRate = 100 - troubleRate;
           return (
             <div key={s0.ingredient} className={`card ${i === 0 ? "top" : ""}`}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <span style={{ fontSize: 20 }}>🧪</span>
                 <div>
                   <div className="ing">{i + 1}위 의심 성분: {s0.ingredient}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>변덕 사용 매칭률</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>도포 사용 매칭률</div>
                 </div>
               </div>
               {s0.ai_reason && <div className="evi" style={{ marginBottom: 12 }}><b>AI 코멘트</b> — {s0.ai_reason}</div>}
-              
-              {/* Comparative Progress Bars */}
+
+              {/* Comparative Progress Bars — 실제 노출 비율(exposure_ratio) 기반 */}
               <div className="compare-row" style={{ marginBottom: 12 }}>
                 <div className="compare-bar-label">
                   <span>트러블 부위 노출률</span>
@@ -86,15 +104,25 @@ export default function AnalysisModal() {
                 <div className="compare-bar">
                   <div className="compare-bar-fill" style={{ width: `${troubleRate}%` }} />
                 </div>
-                
+
                 <div className="compare-bar-label" style={{ marginTop: 8, color: 'var(--text-faint)' }}>
-                  <span>정상 부위 노출률</span>
-                  <span>{normalRate}%</span>
+                  <span>그 외 부위 노출률</span>
+                  <span>{otherRate}%</span>
                 </div>
                 <div className="compare-bar">
-                  <div className="compare-bar-fill normal" style={{ width: `${normalRate}%` }} />
+                  <div className="compare-bar-fill normal" style={{ width: `${otherRate}%` }} />
                 </div>
               </div>
+
+              {s0.collision_warnings && s0.collision_warnings.length > 0 && (
+                <div className="warning-alert-card" style={{ marginBottom: 10 }}>
+                  <span className="warning-alert-icon">⚠️</span>
+                  <div className="warning-alert-content">
+                    <span className="warning-alert-title">{s0.collision_warnings[0].a} + {s0.collision_warnings[0].b} 동시 사용 감지</span>
+                    <span className="warning-alert-desc">{s0.collision_warnings[0].description}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="evi">
                 <b>발생 부위</b>: {s0.zones.map((z) => ZONE_LABELS[z]).join(", ")}<br />
