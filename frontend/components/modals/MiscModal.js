@@ -5,6 +5,7 @@ import SuspectsPanel from "./SuspectsPanel";
 import FactorsPanel from "./FactorsPanel";
 import ReportPanel from "./ReportPanel";
 import ExpResultPanel from "./ExpResultPanel";
+import StartExperimentPanel from "./StartExperimentPanel";
 
 export default function MiscModal() {
   const { miscModal, closeMisc } = useApp();
@@ -17,6 +18,7 @@ export default function MiscModal() {
         {miscModal.kind === "factors" && <FactorsPanel />}
         {miscModal.kind === "report" && <ReportPanel />}
         {miscModal.kind === "expResult" && <ExpResultPanel experimentId={miscModal.experimentId} />}
+        {miscModal.kind === "startExperiment" && <StartExperimentPanel />}
       </div>
     </div>
   );

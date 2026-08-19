@@ -407,6 +407,7 @@ export function AppProvider({ children }) {
       await loadActiveExperiment();
       await loadProducts();
       closeAnalysisModal();
+      setMiscModal({ open: false, kind: null });
       pushToast(`"${ingredient}" ${durationDays || 3}일 실험을 시작했어요`, "ok");
     } catch (err) {
       alert(err.message);
@@ -437,6 +438,11 @@ export function AppProvider({ children }) {
   const openExpResultModal = useCallback((experimentId) => {
     setMiscModal({ open: true, kind: "expResult", experimentId: experimentId || activeExperiment?.id });
   }, [activeExperiment]);
+
+  const openStartExperimentModal = useCallback(async () => {
+    await loadSuspects();
+    setMiscModal({ open: true, kind: "startExperiment" });
+  }, [loadSuspects]);
 
   // ── 시작 시퀀스 ──
   const startApp = useCallback(async () => {
@@ -503,7 +509,7 @@ export function AppProvider({ children }) {
     productModal, openProductModal, closeProductModal, saveProduct, deleteProduct,
     copyPrevious, clearDay,
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,
-    startExperiment, stopExperiment, openExpResultModal,
+    startExperiment, stopExperiment, openExpResultModal, openStartExperimentModal,
     miscModal, closeMisc, openSuspectsModal, openFactorsModal, openReportModal,
     loadSuspects,
     hint, flash, setHint,

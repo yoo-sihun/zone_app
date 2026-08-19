@@ -12,7 +12,7 @@ const STEPS = [
 ];
 
 export default function AnalysisScreen() {
-  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, config } = useApp();
+  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, config } = useApp();
   const [expResult, setExpResult] = useState(null);
 
   useEffect(() => {
@@ -122,6 +122,11 @@ export default function AnalysisScreen() {
         <h2 style={{ marginBottom: 4, fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>내 피부 트러블의<br />진짜 원인은 무엇일까?</h2>
         <div className="sub" style={{ marginBottom: 16 }}>정밀 원인 분석을 실행해보세요</div>
         <button className="btn primary main-action" onClick={() => openAnalysisModal(null)}>🔍 원인 분석 시작하기 &gt;</button>
+      </div>
+
+      <div className="today-cta-card" onClick={openStartExperimentModal}>
+        <span>🧪 이미 의심되는 성분이 있나요?</span>
+        <span className="linkbtn">실험 바로 시작하기</span>
       </div>
 
       <div className="analysis-note">
