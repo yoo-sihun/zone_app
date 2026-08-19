@@ -36,10 +36,11 @@
 - `daily_logs.time_slot`(`am`/`pm`)로 도포 시간대 구분. `analyze()`의 `suspects`에 `time_slots` 필드가 붙어서, 어떤 성분이 아침에만/저녁에만/둘 다 발렸는지 알 수 있음 (매칭 로직 자체는 시간대로 거르지 않고, 정보만 부가).
 - `trouble_dots.type`(`comedonal`/`papule`/`pustule`/`redness`)로 트러블 유형 구분. `GET /api/analysis?type=pustule`처럼 쿼리 파라미터로 특정 유형만 필터링해서 분석 가능(생략하면 전체).
 
-**의심 성분 저장 + 3일 실험 추적** ([backend/experiments.py](backend/experiments.py))은 구현됨:
+**의심 성분 저장 + 3일/7일 실험 추적** ([backend/experiments.py](backend/experiments.py))은 구현됨:
 - `POST /api/suspects {ingredient}`로 저장해두면, 이후 `POST /api/products`로 등록하는 제품에 그 성분이 있으면 응답의 `warnings`에 표시됨
-- `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
-- `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
+- `POST /api/experiments {ingredient, duration_days}`로 실험 시작 — `duration_days`는 `EXPERIMENT_DAY_OPTIONS`(`[3, 7]`) 중 하나만 허용, 안 보내면 기본 3일(`EXPERIMENT_DAYS`). 각 실험은 자기 `duration_days`를 DB에 저장해 갖고 있음(실험마다 기간이 다를 수 있음) — 시작일부터 `duration_days - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
+- `GET /api/experiments/{id}/result`에서 실험 시작 전 `duration_days`일 vs 진행 `duration_days`일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 그 기간이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
+- 프론트(`AnalysisModal.js`)는 분석 결과 화면에서 실험 시작 전 3일/7일 칩으로 기간을 고르게 하고, `GET /api/config`의 `experiment_day_options`로 선택지를 받아옴. `ExpBar`/`AnalysisScreen`/`ExpResultPanel`은 전부 `config.experiment_days`(전역 기본값) 대신 그 실험 객체 자신의 `duration_days`를 읽어서 표시함 — 실험마다 기간이 다를 수 있어서 전역 상수를 쓰면 틀리게 나옴.
 - **프론트 연동 완료, 하단 5탭 네비게이션 구조**([frontend/lib/AppContext.js](frontend/lib/AppContext.js)) — 화면(홈/기록/분석/화장대/MY)을 JS로 전환하는 SPA 형태. 피그마 리다이자인(팀 프론트 담당자 작업물)을 받아서 이 구조로 새로 짬 — 예전엔 홈/히스토리/기록/마이 4탭이었고 트러블 기록이 "기록" 화면 안 탭 전환이었는데, 지금은 아래처럼 바뀜:
   - **홈**: 오늘의 피부 날씨 카드(PM2.5·습도·자외선 전부 실제 값, "날씨 동기화" 버튼으로 셋 다 한번에 갱신), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트)
   - **기록**: AM/PM별로 헤더 문구가 바뀌는 인사말 카드(`RecordScreen.js`의 `.record-slot-hero`, "오늘 아침/저녁에 사용한 제품을 기록해볼까요?") + **실제 주간 캘린더**(`components/WeekStrip.js` — 선택한 날짜 기준 앞뒤 3일씩 7일을 보여주고 탭하면 바로 그 날짜로 이동, 미래 날짜는 비활성화. `AppContext.js`의 `goToDate()`로 임의 날짜 이동 가능, 기존 `goPrevDay`/`goNextDay`는 하루씩 이동만 가능했음) + 얼굴 SVG + 제품 선택(도포만, 트러블 아님). "최근 사용 제품" 목록은 이름 그대로 **실제 최근 사용한 순서로 정렬**됨(`GET /api/products`가 이제 이렇게 정렬해서 줌, §2 참고). 하단에 "🔴 트러블도 기록할까요? + 기록하기" 카드가 있고, 누르면 별도의 **트러블 기록 화면**(`screen === 'trouble'`, 하단 탭엔 없고 기록 화면의 하위 흐름 — `openTroubleScreen()`/`closeTroubleScreen()`으로 진입·복귀)으로 전환됨. 이 화면엔 트러블 유형 선택 + AI 사진 판단 + 얼굴 SVG(트러블 모드) + 외부/생활 요인(날씨·자외선은 읽기전용, 수면시간·오늘의 피부 상태는 인라인 입력) + **"기록 저장" 버튼**이 다 있음 — "그냥 바르고 끝"과 "트러블 기록"을 명확히 분리해서, 트러블이 없는 날은 원인분석 버튼 같은 게 안 보이게 함(예전엔 기록 화면 맨 아래에 분석 버튼이 항상 떠 있어서 "이거 눌러야 끝나나?" 하는 혼란이 있었음, 그래서 분리·이동함)
@@ -87,8 +88,8 @@ suspect_ingredients      -- 사용자가 저장해둔 의심 성분
   id, profile_id, ingredient, created_at
   unique(profile_id, ingredient)
 
-experiments              -- 3일 성분 제외 실험
-  id, profile_id, ingredient, start_date, status(active|completed|stopped), created_at
+experiments              -- 성분 제외 실험 (3일 또는 7일)
+  id, profile_id, ingredient, start_date, status(active|completed|stopped), duration_days(3|7), created_at
 
 external_factors         -- 프로필+날짜당 1행, 수동 입력 + 미세먼지/습도/자외선 자동 동기화
   id, profile_id, date, sleep_hours, menstrual_phase, memo, pm25, humidity, uv_index, skin_condition
@@ -137,7 +138,7 @@ GET    /api/history/zone-status?start=&end= → [{zone, zone_label, status, coun
 
 GET    /api/experiments         → 전체 실험 목록(진행중/완료/중단 다 포함), start_date 내림차순 -- 히스토리 화면 "지난 실험"에 씀
 GET    /api/experiments/active  → 진행 중인 실험 1건 또는 null
-POST   /api/experiments         {ingredient} → 실험 시작 (이미 active면 400)
+POST   /api/experiments         {ingredient, duration_days} → 실험 시작 (이미 active면 400, duration_days가 3/7 아니면 400, 안 보내면 기본 3)
 GET    /api/experiments/{id}/result → {..., before_count, during_count, improved}
 PATCH  /api/experiments/{id}    → 중단(status=stopped)
 
@@ -148,7 +149,7 @@ POST   /api/external-factors/{date}/sync-weather → 기상청 초단기실황�
 
 GET    /api/reports/pdf?start=&end= → PDF 파일 스트리밍 다운로드 (기간 내 트러블/도포 히스토리/의심 성분/외부 요인 요약)
 
-GET    /api/config              → {zones, zone_labels, sub_zones, sub_to_parent, trouble_types, trouble_type_labels, experiment_days}  -- 헤더 불필요. 부위/트러블유형 등 정적 상수 값 — 프론트가 페이지 로드 시 이걸 fetch해서 채움(§5)
+GET    /api/config              → {zones, zone_labels, sub_zones, sub_to_parent, trouble_types, trouble_type_labels, experiment_days, experiment_day_options}  -- 헤더 불필요. 부위/트러블유형 등 정적 상수 값 — 프론트가 페이지 로드 시 이걸 fetch해서 채움(§5). experiment_days는 기본값(3), experiment_day_options(`[3, 7]`)는 실험 시작 시 고를 수 있는 선택지
 ```
 
 백엔드(`backend/`)는 이 API 엔드포인트들만 서빙함 — 페이지 라우트(`/`)는 없음(`GET /`은 그냥 `{"service": "ZONE API", ...}` 안내용 JSON). 프론트(`frontend/`)가 별도 서비스로 SPA처럼 화면(홈/기록/히스토리/마이)을 JS로 전환함.
