@@ -9,7 +9,7 @@
 - DB: `DATABASE_URL` 환경변수가 없으면 로컬 sqlite(`zone.db`) 자동 사용. 지정하면 아무 Postgres(Supabase 포함)든 연결 가능 — 하지만 Supabase Auth/Storage/RLS는 안 씀, 순수 커넥션 문자열로만 사용.
 - 인증: **비밀번호 없는 프로필 선택 방식.** 로그인(이메일/비밀번호) 화면은 없고, 앱 첫 진입 시 프로필 목록에서 고르거나 새로 만듦(넷플릭스 프로필과 비슷). 선택한 프로필 id는 브라우저 `localStorage`에 저장되고, 이후 모든 `/api/*` 요청에 `X-Profile-Id` 헤더로 실려 감(서버는 `backend/deps.py`의 `get_current_profile_id`로 검증). 세션 쿠키/JWT/비밀번호 없음 — 헤더값만으로 "누구 데이터인지" 구분하는 가벼운 방식이라 진짜 보안은 아님(헤더 값을 바꾸면 남의 프로필 데이터에 접근 가능). 데모/개인용 스코프에서 "여러 명이 기록을 안 섞고 쓰는" 용도로만 충분.
 - 프론트: `frontend/`(React/Next.js, `output: 'export'` 정적 내보내기) — Vercel에 정적 사이트로 배포. Jinja 서버 렌더링 없음, 부위 목록 같은 상수 값도 페이지 로드 시 `GET /api/config`를 fetch해서 채움. §5 참고.
-- AI(OpenAI Vision, `gpt-4o-mini`, JSON 응답 모드): 성분표 사진 → 성분 리스트(`ai/ocr.py`), 트러블 사진 → 유형 추천(`ai/trouble_classify.py`, 베타). 클라이언트 생성은 `ai/client.py`에 공용화. **`openai` 패키지는 반드시 1.54+ 써야 함** — 1.51.0 등 구버전은 최신 `httpx`(0.28+)와 호환이 안 돼서 `OpenAI()` 생성 시점에 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`로 죽음. 실제로 겪은 문제라 requirements.txt에 `openai==1.59.9`로 고정해둠 — 낮춰서 재현하지 말 것.
+- AI(OpenAI, `gpt-4o-mini`, JSON 응답 모드): 성분표 사진 → 성분 리스트(`ai/ocr.py`, Vision), 트러블 사진 → 유형 추천(`ai/trouble_classify.py`, Vision, 베타), 의심 성분 목록 재정렬(`ai/rank_suspects.py`, 텍스트 전용 — §0 참고). 클라이언트 생성은 `ai/client.py`에 공용화. **`openai` 패키지는 반드시 1.54+ 써야 함** — 1.51.0 등 구버전은 최신 `httpx`(0.28+)와 호환이 안 돼서 `OpenAI()` 생성 시점에 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`로 죽음. 실제로 겪은 문제라 requirements.txt에 `openai==1.59.9`로 고정해둠 — 낮춰서 재현하지 말 것.
 - 배포: **프론트/백엔드가 분리된 두 서비스.** 백엔드(FastAPI)는 Render(`render.yaml`, 실배포 URL `https://zone-app-9iiw.onrender.com`) — API 전용, HTML을 서빙하지 않음. 프론트(`frontend/`)는 Vercel에 정적 사이트로 배포. 아래 §5 참고.
 
 실행법·환경변수는 [README.md](README.md) 참고.
@@ -27,6 +27,7 @@
   3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
   5. 응답에 상황별 안내 문구(`message`)도 같이 반환 — 트러블 기록 없음 / 대조군(안 난 부위) 없음 / 겹치는 성분 없음 / 기록 기간이 `LAG_DAYS`보다 짧음 / 정상적으로 N일치 분석함, 5가지 상태를 서버에서 판단해서 문자열로 내려줌. 프론트는 이 문구를 그대로 표시하면 되고, "데이터 충분한지" 판단 로직을 프론트에서 다시 만들 필요 없음.
+- **`suspects` 순위에 AI 재정렬이 한 단계 더 붙음** — `analyze()` 자체는 여전히 순수 통계(빈도순)만 계산하고, `backend/main.py`의 `/api/analysis` 라우트가 그 결과를 `ai/rank_suspects.py`의 `rank_suspects()`에 넘겨서 최종 순서를 정함. 이유: 빈도순으로만 정렬하면 정제수·글리세린처럼 거의 모든 제품에 들어가는 무자극 베이스 성분이 단순히 자주 쓰였다는 이유로 항상 1위로 올라오는 편향이 있음 — AI가 성분 지식(레티놀/AHA·BHA/프래그런스 등 자극 성분은 올리고, 베이스 성분은 내림)으로 이 편향을 보정함. 원본 통계(`count`/`zones`/`time_slots`)는 그대로 유지되고 순서와 `ai_reason`(성분별 한 줄 설명)만 추가/변경됨. OpenAI 호출 실패 시(키 없음, 레이트리밋 등) 예외를 전부 삼키고 원래 빈도순 그대로 폴백함(`ai_ranked: false`) — 핵심 분석 기능이 AI 장애로 죽지 않게 함.
 - 아직 없는 것: 바코드 스캔 — §6 "향후 아이디어" 참고.
 
 **AM/PM 구분 + 트러블 유형**은 구현됨:
@@ -120,7 +121,7 @@ POST   /api/dots                {date, zone, type, x, y}
 POST   /api/dots/classify       (multipart image) → {type: comedonal|papule|pustule|redness|null}  -- AI 추천값, null이면 판단 실패(사용자가 직접 선택해야 함)
 DELETE /api/dots/{id}
 
-GET    /api/analysis            → analyze() 결과. ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots 필드 포함, 응답에 상황별 안내 message 필드 포함
+GET    /api/analysis            → analyze() 결과 + AI 재정렬(§0). ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots/ai_reason 필드 포함, 응답에 상황별 안내 message + ai_ranked(bool) 필드 포함
 
 GET    /api/suspects            → [{id, ingredient}]
 POST   /api/suspects            {ingredient} -- 이미 있으면 그냥 기존 것 반환(idempotent)
@@ -183,9 +184,10 @@ backend/
     history.py             /api/history/summary  (히스토리 화면 얼굴 시각화용 집계)
 
 ai/
-  client.py           OpenAI 클라이언트 생성 공용 함수 (ocr.py/trouble_classify.py가 같이 씀)
+  client.py           OpenAI 클라이언트 생성 공용 함수 (ocr.py/trouble_classify.py/rank_suspects.py가 같이 씀)
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
   trouble_classify.py  OpenAI Vision으로 트러블 사진 → 유형 추천 (베타, 사용자가 확인/수정 가능해야 함)
+  rank_suspects.py       텍스트 전용 GPT 호출로 의심 성분 순위를 성분 지식 기반으로 재정렬 (§0) — 실패 시 원래 빈도순으로 폴백
 
 render.yaml           Render Blueprint (build/start command, 헬스체크, env var 목록)
 ```

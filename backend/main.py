@@ -22,6 +22,7 @@ from . import models  # noqa: F401  (모델 등록을 위해 import)
 from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS, SUB_ZONES, SUB_TO_PARENT
 from .analysis import analyze
 from .experiments import EXPERIMENT_DAYS
+from ai.rank_suspects import rank_suspects
 
 Base.metadata.create_all(bind=engine)
 
@@ -74,7 +75,9 @@ def get_analysis(
 ):
     if type is not None and type not in TROUBLE_TYPES:
         raise HTTPException(status_code=400, detail="알 수 없는 트러블 유형입니다")
-    return analyze(db, profile_id, dot_type=type)
+    result = analyze(db, profile_id, dot_type=type)
+    result["suspects"], result["ai_ranked"] = rank_suspects(result["suspects"])
+    return result
 
 
 @app.get("/health")

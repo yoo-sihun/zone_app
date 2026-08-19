@@ -55,9 +55,13 @@ export default function AnalysisModal() {
           트러블 {r.events}건 · 발생 부위 {r.bad_zones.map((z) => ZONE_LABELS[z]).join(", ")}
           {" "}· 비교군 {r.good_zones.map((z) => ZONE_LABELS[z]).join(", ") || "없음"}
         </div>
+        {r.ai_ranked && (
+          <div className="sub">✨ 성분 특성(자극 가능성)을 고려해 AI가 순서를 조정했어요</div>
+        )}
         {top.map((s0, i) => (
           <div key={s0.ingredient} className={`card ${i === 0 ? "top" : ""}`}>
             <div className="ing">{s0.ingredient}</div>
+            {s0.ai_reason && <div className="evi"><b>AI 코멘트</b> — {s0.ai_reason}</div>}
             <div className="evi">
               <b>{s0.zones.map((z) => ZONE_LABELS[z]).join(", ")}</b>에서만 발랐고, 그 부위에서 트러블이 났습니다.<br />
               {r.good_zones.length > 0 && <>
