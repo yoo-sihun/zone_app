@@ -151,7 +151,7 @@ export default function ReportPanel() {
                         {zoneRecos.map((p) => (
                           <div key={p.id} className="guide-detail-product-card">
                             <span className="prod-icon">🧴</span>
-                            <span className="prod-name">{p.name}</span>
+                            <span className="prod-name">{p.name}{p.category ? ` (${p.category})` : ""}</span>
                           </div>
                         ))}
                       </div>

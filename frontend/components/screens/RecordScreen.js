@@ -145,7 +145,7 @@ export default function RecordScreen() {
                   <div key={`${e.zone}-${e.productId}-${e.idx}`} className="record-entry-row pending">
                     <span className="record-entry-zone">{ZONE_LABELS[e.zone] || e.zone}</span>
                     <span className="record-entry-name">
-                      {e.product.name}{e.intent === "remove" ? " (삭제 예정)" : ""}
+                      {e.product.name}{e.product.category ? ` · ${e.product.category}` : ""}{e.intent === "remove" ? " (삭제 예정)" : ""}
                     </span>
                     <button className="record-entry-del" onClick={() => cancelPendingApplication(e.zone, e.productId, e.date, e.slot)}>취소</button>
                   </div>
@@ -169,7 +169,7 @@ export default function RecordScreen() {
                 {slotEntries.map(({ zone, product }) => (
                   <div key={`${zone}-${product.id}`} className="record-entry-row">
                     <span className="record-entry-zone">{ZONE_LABELS[zone] || zone}</span>
-                    <span className="record-entry-name">{product.name}</span>
+                    <span className="record-entry-name">{product.name}{product.category ? ` · ${product.category}` : ""}</span>
                     <button className="record-entry-del" onClick={() => removeProductFromZone(zone, product.id)}>삭제</button>
                   </div>
                 ))}

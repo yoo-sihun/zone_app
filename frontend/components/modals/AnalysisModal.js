@@ -18,7 +18,9 @@ export default function AnalysisModal() {
   const TROUBLE_TYPE_LABELS = config.trouble_type_labels;
 
   function productName(id) {
-    return products.find((p) => p.id === id)?.name || "(삭제된 제품)";
+    const p = products.find((p) => p.id === id);
+    if (!p) return "(삭제된 제품)";
+    return p.category ? `${p.name}(${p.category})` : p.name;
   }
 
   const typeChips = (

@@ -267,7 +267,7 @@ export default function HomeScreen() {
               >
                 <div style={{ fontSize: "28px", marginBottom: "6px" }}>{emoji}</div>
                 <div className="reconame" style={{ fontSize: "11px", fontWeight: "800", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                <div style={{ fontSize: "9px", color: "var(--text-faint)", marginTop: "4px" }}>아침/저녁</div>
+                {p.category && <div style={{ fontSize: "9px", color: "var(--text-faint)", marginTop: "4px" }}>{p.category}</div>}
               </div>
             );
           })}
