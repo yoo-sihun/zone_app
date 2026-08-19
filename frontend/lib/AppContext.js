@@ -401,13 +401,13 @@ export function AppProvider({ children }) {
   }, [pushToast]);
 
   // ── 실험 ──
-  const startExperiment = useCallback(async (ingredient) => {
+  const startExperiment = useCallback(async (ingredient, durationDays) => {
     try {
-      await api("/api/experiments", { method: "POST", body: JSON.stringify({ ingredient }) });
+      await api("/api/experiments", { method: "POST", body: JSON.stringify({ ingredient, duration_days: durationDays || 3 }) });
       await loadActiveExperiment();
       await loadProducts();
       closeAnalysisModal();
-      pushToast(`"${ingredient}" 3일 실험을 시작했어요`, "ok");
+      pushToast(`"${ingredient}" ${durationDays || 3}일 실험을 시작했어요`, "ok");
     } catch (err) {
       alert(err.message);
     }

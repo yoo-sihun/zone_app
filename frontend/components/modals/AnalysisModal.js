@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useApp } from "@/lib/AppContext";
 
 export default function AnalysisModal() {
@@ -8,8 +9,10 @@ export default function AnalysisModal() {
     config, products, activeExperiment, saveSuspectFromAnalysis, startExperiment,
   } = useApp();
   const { open, data: r } = analysisModal;
+  const [durationDays, setDurationDays] = useState(3);
 
   if (!open || !r || !config) return null;
+  const DAY_OPTIONS = config.experiment_day_options || [3, 7];
   const ZONE_LABELS = config.zone_labels;
   const TROUBLE_TYPES = config.trouble_types;
   const TROUBLE_TYPE_LABELS = config.trouble_type_labels;
@@ -103,9 +106,16 @@ export default function AnalysisModal() {
         })}
         <div className="ask">
           <p><b>{top0.ingredient}</b> 성분을 의심 성분으로 저장할까요?<br />저장하면 새 제품 등록 시 포함 여부를 미리 경고해드려요.</p>
+          {!activeExperiment && (
+            <div className="chiprow" style={{ marginBottom: 10 }}>
+              {DAY_OPTIONS.map((d) => (
+                <button key={d} className={durationDays === d ? "chip on" : "chip"} onClick={() => setDurationDays(d)}>{d}일</button>
+              ))}
+            </div>
+          )}
           <div className="row">
             <button className="btn ghost" onClick={() => saveSuspectFromAnalysis(top0.ingredient)}>의심 성분 저장</button>
-            <button className="btn primary" disabled={!!activeExperiment} onClick={() => startExperiment(top0.ingredient)}>3일 실험 시작하기 &gt;</button>
+            <button className="btn primary" disabled={!!activeExperiment} onClick={() => startExperiment(top0.ingredient, durationDays)}>{durationDays}일 실험 시작하기 &gt;</button>
           </div>
           {activeExperiment && <div className="expnote" style={{ color: 'var(--coral)', fontSize: 11, marginTop: 6, fontWeight: 700 }}>이미 &quot;{activeExperiment.ingredient}&quot; 실험이 진행 중이에요.</div>}
         </div>

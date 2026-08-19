@@ -12,6 +12,7 @@ from ..experiments import (
     day_count,
     is_window_complete,
     compute_result,
+    EXPERIMENT_DAY_OPTIONS,
 )
 
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
@@ -24,6 +25,7 @@ def _to_out(exp: Experiment) -> dict:
         "ingredient": exp.ingredient,
         "start_date": exp.start_date,
         "status": exp.status,
+        "duration_days": exp.duration_days,
         "day": day_count(exp, today),
         "is_complete": is_window_complete(exp, today),
     }
@@ -54,7 +56,12 @@ def start_experiment(
 ):
     if get_active_experiment(db, profile_id):
         raise HTTPException(status_code=400, detail="이미 진행 중인 실험이 있습니다")
-    exp = Experiment(profile_id=profile_id, ingredient=data.ingredient, start_date=Date.today(), status="active")
+    if data.duration_days not in EXPERIMENT_DAY_OPTIONS:
+        raise HTTPException(status_code=400, detail=f"실험 기간은 {EXPERIMENT_DAY_OPTIONS}일 중에서만 선택할 수 있습니다")
+    exp = Experiment(
+        profile_id=profile_id, ingredient=data.ingredient, start_date=Date.today(),
+        status="active", duration_days=data.duration_days,
+    )
     db.add(exp)
     db.commit()
     db.refresh(exp)
@@ -78,15 +85,7 @@ def get_result(
     if complete and exp.status == "active":
         exp.status = "completed"
         db.commit()
-    return {
-        "id": exp.id,
-        "ingredient": exp.ingredient,
-        "start_date": exp.start_date,
-        "status": exp.status,
-        "day": day_count(exp, today),
-        "is_complete": complete,
-        **result,
-    }
+    return {**_to_out(exp), **result}
 
 
 @router.patch("/{experiment_id}")

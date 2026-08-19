@@ -125,8 +125,9 @@ class SuspectIngredient(Base):
 
 
 class Experiment(Base):
-    """A 3-day elimination trial: products containing `ingredient` are locked
-    for daily_logs dated within [start_date, start_date + EXPERIMENT_DAYS - 1]."""
+    """An elimination trial: products containing `ingredient` are locked
+    for daily_logs dated within [start_date, start_date + duration_days - 1].
+    duration_days is chosen per-experiment (3 or 7) — see EXPERIMENT_DAY_OPTIONS."""
     __tablename__ = "experiments"
 
     id = Column(Integer, primary_key=True)
@@ -134,6 +135,7 @@ class Experiment(Base):
     ingredient = Column(String, nullable=False)
     start_date = Column(Date, nullable=False)
     status = Column(String, nullable=False, default="active")  # active | completed | stopped
+    duration_days = Column(Integer, nullable=False, default=3)
     created_at = Column(DateTime, server_default=func.now())
 
 

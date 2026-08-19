@@ -14,7 +14,7 @@ export default function ExpBar() {
   return (
     <div className="expbar">
       <div className="expinfo">
-        🧪 <b>{activeExperiment.ingredient}</b> 제외 실험 · {activeExperiment.day}/{config.experiment_days}일차
+        🧪 <b>{activeExperiment.ingredient}</b> 제외 실험 · {activeExperiment.day}/{activeExperiment.duration_days}일차
       </div>
       <div className="exbtns">
         <button className="expbtn" onClick={() => openExpResultModal()}>

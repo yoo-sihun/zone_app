@@ -31,7 +31,7 @@ export default function AnalysisScreen() {
   }, [activeExperiment]);
 
   if (activeExperiment && expResult) {
-    const totalDays = config?.experiment_days || 3;
+    const totalDays = activeExperiment.duration_days || config?.experiment_days || 3;
     const progressPercent = ((activeExperiment.day - 1) / (totalDays - 1)) * 100;
     const beforeCount = expResult.before_count || 0;
     const duringCount = expResult.during_count || 0;
@@ -43,7 +43,7 @@ export default function AnalysisScreen() {
     return (
       <div className="screen" id="screenAnalysis">
         <div className="sechead" style={{ marginTop: 0 }}>
-          <h3>3일 실험 진행 중</h3>
+          <h3>{totalDays}일 실험 진행 중</h3>
           <button className="expbtn stop" onClick={stopExperiment}>실험 중단</button>
         </div>
 
@@ -51,7 +51,7 @@ export default function AnalysisScreen() {
         <div className="card" style={{ padding: '20px 8px 30px', marginBottom: 20, background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <div className="experiment-timeline">
             <div className="experiment-timeline-fill" style={{ width: `${progressPercent}%` }} />
-            {[1, 2, 3].map((d) => {
+            {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
               const isActive = activeExperiment.day === d;
               const isPassed = activeExperiment.day > d;
               let nodeClass = "experiment-day-node";

@@ -93,6 +93,7 @@ class SuspectOut(BaseModel):
 
 class ExperimentIn(BaseModel):
     ingredient: str
+    duration_days: int = 3  # 3 또는 7만 허용 — 라우터에서 검증
 
 
 class ExperimentOut(BaseModel):
@@ -100,7 +101,8 @@ class ExperimentOut(BaseModel):
     ingredient: str
     start_date: Date
     status: str
-    day: int  # 1..EXPERIMENT_DAYS, current progress
+    duration_days: int
+    day: int  # 1..duration_days, current progress
     is_complete: bool
 
 

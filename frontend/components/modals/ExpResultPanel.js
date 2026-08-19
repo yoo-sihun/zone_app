@@ -23,13 +23,13 @@ export default function ExpResultPanel({ experimentId }) {
   return (
     <>
       <h2>{r.ingredient} 실험 결과</h2>
-      <div className="sub">{r.is_complete ? "실험 종료" : `진행 중 · ${r.day}/${config.experiment_days}일차 (중간 결과)`}</div>
+      <div className="sub">{r.is_complete ? "실험 종료" : `진행 중 · ${r.day}/${r.duration_days}일차 (중간 결과)`}</div>
       <div className="card">
-        <div className="explabel">실험 전 {config.experiment_days}일</div>
+        <div className="explabel">실험 전 {r.duration_days}일</div>
         <div className="expnum">{r.before_count}건</div>
       </div>
       <div className={`card ${r.improved ? "top" : ""}`}>
-        <div className="explabel">실험 중 {config.experiment_days}일</div>
+        <div className="explabel">실험 중 {r.duration_days}일</div>
         <div className="expnum">{r.during_count}건</div>
       </div>
       <div className="ask">

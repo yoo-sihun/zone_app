@@ -21,7 +21,7 @@ from .routers import history as history_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
 from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS, SUB_ZONES, SUB_TO_PARENT
 from .analysis import analyze
-from .experiments import EXPERIMENT_DAYS
+from .experiments import EXPERIMENT_DAYS, EXPERIMENT_DAY_OPTIONS
 from ai.rank_suspects import rank_suspects
 
 Base.metadata.create_all(bind=engine)
@@ -64,6 +64,7 @@ def get_config():
         "trouble_types": TROUBLE_TYPES,
         "trouble_type_labels": TROUBLE_TYPE_LABELS,
         "experiment_days": EXPERIMENT_DAYS,
+        "experiment_day_options": EXPERIMENT_DAY_OPTIONS,
     }
 
 
