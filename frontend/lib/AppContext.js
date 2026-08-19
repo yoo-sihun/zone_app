@@ -293,6 +293,21 @@ export function AppProvider({ children }) {
     setSelectedProductIds((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
   }, []);
 
+  // 얼굴을 다시 탭하지 않고, 기록 목록에서 특정 항목 하나만 바로 지울 때 씀(선택 상태와 무관)
+  const removeProductFromZone = useCallback(async (zone, productId) => {
+    try {
+      const r = await api("/api/log/toggle", {
+        method: "POST",
+        body: JSON.stringify({ date: fmt(currentDate), zone, time_slot: slot, product_id: productId }),
+      });
+      pushToast(r.applied ? "저장됐어요 ✓" : "지웠어요", "ok");
+      refreshBell();
+    } catch (err) {
+      alert(err.message);
+    }
+    await loadDay();
+  }, [currentDate, slot, pushToast, refreshBell, loadDay]);
+
   const placeDot = useCallback(async (zone, x, y) => {
     await api("/api/dots", {
       method: "POST",
@@ -453,7 +468,7 @@ export function AppProvider({ children }) {
     recommendations,
     historyDays, setHistoryDays, historySummary, pastExperiments,
     bellLogged, refreshBell,
-    toggleLog, placeDot, deleteDot,
+    toggleLog, removeProductFromZone, placeDot, deleteDot,
     productModal, openProductModal, closeProductModal, saveProduct, deleteProduct,
     copyPrevious, clearDay,
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,

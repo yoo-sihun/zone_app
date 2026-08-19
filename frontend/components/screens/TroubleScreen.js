@@ -9,7 +9,7 @@ import FaceRecord from "@/components/FaceRecord";
 export default function TroubleScreen() {
   const {
     config, currentDate, fmt, closeTroubleScreen, troubleType, setTroubleType,
-    weather, loadWeather, pushToast,
+    weather, loadWeather, pushToast, dayData, deleteDot,
   } = useApp();
   const aiFileRef = useRef(null);
   const dateStr = fmt(currentDate);
@@ -20,6 +20,8 @@ export default function TroubleScreen() {
   if (!config) return null;
   const TROUBLE_TYPES = config.trouble_types;
   const TROUBLE_TYPE_LABELS = config.trouble_type_labels;
+  const ZONE_LABELS = config.zone_labels;
+  const TYPE_EMOJI = { comedonal: "🟡", papule: "🟠", pustule: "🔴", redness: "💗" };
 
   async function onAiFile(e) {
     const file = e.target.files[0];
@@ -83,6 +85,23 @@ export default function TroubleScreen() {
       <div className="hint" style={{ marginBottom: 12 }}>얼굴 부위를 터치하면 유형이 선택됩니다.</div>
 
       <FaceRecord />
+
+      {dayData.dots.length > 0 && (
+        <>
+          <div className="sechead" style={{ marginTop: 16 }}>
+            <h3>이 날 기록된 트러블 ({dayData.dots.length})</h3>
+          </div>
+          <div className="record-entry-list">
+            {dayData.dots.map((d) => (
+              <div key={d.id} className="record-entry-row">
+                <span className="record-entry-zone">{ZONE_LABELS[d.zone] || d.zone}</span>
+                <span className="record-entry-name">{TYPE_EMOJI[d.type]} {TROUBLE_TYPE_LABELS[d.type]}</span>
+                <button className="record-entry-del" onClick={() => deleteDot(d.id)}>삭제</button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="sechead" style={{ marginTop: 20 }}><h3>외부 / 생활 요인</h3></div>
       <div className="factor-grid">

@@ -13,7 +13,7 @@ export default function RecordScreen() {
     products, selectedProductIds, toggleProductSelection,
     deleteProduct, openProductModal,
     copyPrevious, clearDay, openTroubleScreen, flash,
-    dayData,
+    dayData, removeProductFromZone,
   } = useApp();
 
   useEffect(() => { setMode("apply"); }, [setMode]);
@@ -83,6 +83,19 @@ export default function RecordScreen() {
 
   const slotWarnings = getSlotWarnings();
 
+  // 얼굴 하이라이트는 현재 선택한 제품 기준이라, 선택을 안 하면 이 슬롯에 뭘 발랐는지 안 보임 —
+  // 그래서 선택 여부와 무관하게 이 날짜/슬롯 기록을 항상 목록으로 보여주고 항목별로 바로 지울 수 있게 함
+  const slotEntries = [];
+  if (dayData && dayData.log) {
+    Object.keys(dayData.log).forEach((zone) => {
+      const slotProdIds = dayData.log[zone][slot] || [];
+      slotProdIds.forEach((pid) => {
+        const prod = products.find((p) => p.id === pid);
+        if (prod) slotEntries.push({ zone, product: prod });
+      });
+    });
+  }
+
   return (
     <div className="screen" id="screenRecord">
       <div className="record-slot-hero">
@@ -101,6 +114,23 @@ export default function RecordScreen() {
       <div className="hint" style={hint ? { color: "#E14B48" } : undefined}>{hintText()}</div>
 
       <FaceRecord />
+
+      {slotEntries.length > 0 && (
+        <>
+          <div className="sechead" style={{ marginTop: 16 }}>
+            <h3>{slot === "am" ? "오늘 아침" : "오늘 저녁"} 기록 ({slotEntries.length})</h3>
+          </div>
+          <div className="record-entry-list">
+            {slotEntries.map(({ zone, product }) => (
+              <div key={`${zone}-${product.id}`} className="record-entry-row">
+                <span className="record-entry-zone">{ZONE_LABELS[zone] || zone}</span>
+                <span className="record-entry-name">{product.name}</span>
+                <button className="record-entry-del" onClick={() => removeProductFromZone(zone, product.id)}>삭제</button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="trouble-prompt-card" onClick={openTroubleScreen}>
         <span>🔴 트러블도 기록할까요?</span>
