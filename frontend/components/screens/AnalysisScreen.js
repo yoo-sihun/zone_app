@@ -12,7 +12,7 @@ const STEPS = [
 ];
 
 export default function AnalysisScreen() {
-  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, config } = useApp();
+  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, config, setScreen } = useApp();
   const [expResult, setExpResult] = useState(null);
   const [trackInfo, setTrackInfo] = useState(null);
 
@@ -56,7 +56,6 @@ export default function AnalysisScreen() {
       <div className="screen" id="screenAnalysis">
         <div className="sechead" style={{ marginTop: 0 }}>
           <h3>{totalDays}일 실험 진행 중</h3>
-          <button className="expbtn stop" onClick={stopExperiment}>실험 중단</button>
         </div>
 
         {/* Timeline Tracker */}
@@ -82,11 +81,26 @@ export default function AnalysisScreen() {
         {/* Guide Card */}
         <div className="empty-shelf-card" style={{ flexDirection: 'row', gap: 14, padding: 16, textAlign: 'left', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 32 }}>🧴</div>
-          <div>
+          <div style={{ flex: 1 }}>
             <h4 style={{ fontSize: 13, marginBottom: 4 }}>실험 가이드</h4>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: "0 0 10px 0", lineHeight: "1.4" }}>
               의심 성분(<b>{activeExperiment.ingredient}</b>)이 포함된 제품 사용을 중단하고, 평소처럼 피부 변화를 계속 기록해 주세요.
             </p>
+            <button 
+              onClick={() => setScreen("record")} 
+              style={{ 
+                background: "var(--teal-light)", 
+                border: "1px solid var(--teal-border)", 
+                color: "var(--teal-dark)", 
+                fontSize: "11px", 
+                fontWeight: "800", 
+                padding: "6px 12px", 
+                borderRadius: "10px", 
+                cursor: "pointer"
+              }}
+            >
+              👉 오늘의 피부 상태 기록하러 가기
+            </button>
           </div>
         </div>
 

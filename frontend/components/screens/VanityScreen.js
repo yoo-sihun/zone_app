@@ -3,7 +3,7 @@
 import { useApp } from "@/lib/AppContext";
 
 export default function VanityScreen() {
-  const { products, openProductModal, deleteProduct } = useApp();
+  const { products, openProductModal, deleteProduct, openSuspectsModal } = useApp();
 
   async function onDeleteProduct(e, id) {
     e.stopPropagation();
@@ -109,46 +109,21 @@ export default function VanityScreen() {
           <div style={{ fontSize: "14px", color: "var(--teal)", fontWeight: "800" }}>&gt;</div>
         </div>
 
-        {/* 3. 바코드 스캔 */}
-        <div 
-          className="guide-item" 
-          onClick={() => openProductModal()}
-          style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "16px", 
-            padding: "16px", 
-            background: "var(--surface)", 
-            border: "1px solid var(--border)", 
-            borderRadius: "20px", 
+        {/* 3. 의심 성분 자동 체크 — 등록 방법이 아니라, 저장해둔 의심 성분 목록을 관리하는 곳(그 목록이
+             제품 등록 때마다 자동으로 겹치는지 체크하는 실제 동작을 함). SuspectsPanel로 바로 연결 */}
+        <div
+          className="guide-item"
+          onClick={openSuspectsModal}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            padding: "16px",
+            background: "rgba(239, 68, 68, 0.02)",
+            border: "1px solid rgba(239, 68, 68, 0.1)",
+            borderRadius: "20px",
             cursor: "pointer",
-            transition: "all 0.2s ease" 
-          }}
-        >
-          <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "var(--teal-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "var(--teal)", flexShrink: 0 }}>
-            🔍
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "13px", fontWeight: "900", color: "var(--teal)", marginBottom: "4px" }}>바코드 스캔</div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4" }}>공공 데이터베이스에서 정보를 찾아 이름·이미지·성분을 자동으로 채워드려요.</div>
-          </div>
-          <div style={{ fontSize: "14px", color: "var(--teal)", fontWeight: "800" }}>&gt;</div>
-        </div>
-
-        {/* 4. 의심 성분 자동 체크 */}
-        <div 
-          className="guide-item" 
-          onClick={() => openProductModal()}
-          style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "16px", 
-            padding: "16px", 
-            background: "rgba(239, 68, 68, 0.02)", 
-            border: "1px solid rgba(239, 68, 68, 0.1)", 
-            borderRadius: "20px", 
-            cursor: "pointer",
-            transition: "all 0.2s ease" 
+            transition: "all 0.2s ease"
           }}
         >
           <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "rgba(239, 68, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "#EF4444", flexShrink: 0 }}>
@@ -156,7 +131,7 @@ export default function VanityScreen() {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "13px", fontWeight: "900", color: "#EF4444", marginBottom: "4px" }}>의심 성분 자동 체크</div>
-            <div style={{ fontSize: "11px", color: "rgba(239, 68, 68, 0.8)", lineHeight: "1.4" }}>화장품 전성분 중 내 피부에 맞지 않거나 알레르기를 유발할 수 있는 주의 성분을 똑똑하게 분석해요.</div>
+            <div style={{ fontSize: "11px", color: "rgba(239, 68, 68, 0.8)", lineHeight: "1.4" }}>여기에 의심 성분을 등록해두면, 이후 제품을 새로 추가할 때마다 겹치는지 자동으로 체크해서 알려드려요.</div>
           </div>
           <div style={{ fontSize: "14px", color: "#EF4444", fontWeight: "800" }}>&gt;</div>
         </div>
