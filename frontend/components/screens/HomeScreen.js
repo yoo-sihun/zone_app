@@ -144,7 +144,7 @@ export default function HomeScreen() {
           <div className="qlbtn-icon" style={{ fontSize: "20px", background: "none", width: "auto", height: "auto", marginBottom: "4px" }}>🧪</div>
           <span style={{ fontSize: "11px", fontWeight: "800" }}>성분 분석</span>
         </button>
-        <button className="qlbtn" onClick={() => setScreen("record")} style={{ height: "82px", padding: "12px 4px", borderRadius: "18px" }}>
+        <button className="qlbtn" onClick={() => { setScreen("record"); setMode("trouble"); }} style={{ height: "82px", padding: "12px 4px", borderRadius: "18px" }}>
           <div className="qlbtn-icon" style={{ fontSize: "20px", background: "none", width: "auto", height: "auto", marginBottom: "4px" }}>📝</div>
           <span style={{ fontSize: "11px", fontWeight: "800" }}>트러블 기록</span>
         </button>

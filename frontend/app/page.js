@@ -7,7 +7,6 @@ import BottomNav from "@/components/BottomNav";
 import Toasts from "@/components/Toasts";
 import HomeScreen from "@/components/screens/HomeScreen";
 import RecordScreen from "@/components/screens/RecordScreen";
-import TroubleScreen from "@/components/screens/TroubleScreen";
 import RecommendScreen from "@/components/screens/RecommendScreen";
 import AnalysisScreen from "@/components/screens/AnalysisScreen";
 import VanityScreen from "@/components/screens/VanityScreen";
@@ -19,7 +18,6 @@ import MiscModal from "@/components/modals/MiscModal";
 
 function Shell() {
   const { screen } = useApp();
-  const showNav = screen !== "trouble" && screen !== "recommend";
   return (
     <>
       <div className="app">
@@ -27,12 +25,11 @@ function Shell() {
         <ExpBar />
         {screen === "home" && <HomeScreen />}
         {screen === "record" && <RecordScreen />}
-        {screen === "trouble" && <TroubleScreen />}
         {screen === "recommend" && <RecommendScreen />}
         {screen === "analysis" && <AnalysisScreen />}
         {screen === "vanity" && <VanityScreen />}
         {screen === "my" && <MyScreen />}
-        {showNav && <BottomNav />}
+        <BottomNav />
       </div>
       <ProfileModal />
       <ProductModal />

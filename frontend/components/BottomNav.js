@@ -5,14 +5,14 @@ import { useApp } from "@/lib/AppContext";
 const ITEMS = [
   { key: "home", icon: "🏠", label: "홈" },
   { key: "record", icon: "📝", label: "기록" },
-  { key: "analysis", icon: "🔍", label: "분석" },
+  { key: "analysis", icon: "📊", label: "분석" },
   { key: "vanity", icon: "🧴", label: "화장대" },
   { key: "my", icon: "👤", label: "MY" },
 ];
 
 export default function BottomNav() {
   const { screen, setScreen } = useApp();
-  const active = screen === "trouble" ? "record" : screen;
+  const active = screen;
   return (
     <nav className="bottomnav">
       {ITEMS.map((it) => (

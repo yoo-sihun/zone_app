@@ -204,24 +204,13 @@ export function AppProvider({ children }) {
   const setScreen = useCallback((name) => {
     setScreenState(name);
     setFocusedParentZone(null);
+    if (name === "record") setModeState("apply");
     if (name === "home") { loadWeather(); loadRecommendations(); refreshBell(); }
     if (name === "analysis") loadHistory();
   }, [loadWeather, loadRecommendations, refreshBell, loadHistory]);
 
   const setMode = useCallback((m) => {
     setModeState(m);
-  }, []);
-
-  // 기록 화면 안에서 "트러블도 기록할까요?"로 진입하는 별도 화면 — 하단 탭엔 없고 기록 화면의 하위 흐름
-  const openTroubleScreen = useCallback(() => {
-    setScreenState("trouble");
-    setFocusedParentZone(null);
-    setModeState("trouble");
-  }, []);
-  const closeTroubleScreen = useCallback(() => {
-    setScreenState("record");
-    setFocusedParentZone(null);
-    setModeState("apply");
   }, []);
 
   // ── 줌 ──
@@ -490,7 +479,6 @@ export function AppProvider({ children }) {
     closeProfileModal: () => setProfileModalOpen(false),
     deleteCurrentProfile,
     screen, setScreen,
-    openTroubleScreen, closeTroubleScreen,
     mode, setMode,
     slot, setSlot,
     troubleType, setTroubleType,

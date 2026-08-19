@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 
 // 외부 요인(수면/생리주기/메모/자가진단 피부상태) 폼 상태 + 저장 로직 공용 훅.
-// FactorsPanel(마이 화면 모달)과 TroubleScreen(트러블 기록 화면 인라인)이 같이 씀.
+// FactorsPanel(마이 화면 모달)과 RecordScreen(트러블 모드 인라인)이 같이 씀.
 export function useExternalFactors(dateStr) {
   const [loaded, setLoaded] = useState(false);
   const [sleep, setSleep] = useState("");
