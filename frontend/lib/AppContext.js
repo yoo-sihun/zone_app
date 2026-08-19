@@ -207,6 +207,44 @@ export function AppProvider({ children }) {
     if (name === "record") setModeState("apply");
     if (name === "home") { loadWeather(); loadRecommendations(); refreshBell(); }
     if (name === "analysis") loadHistory();
+    
+    // Sync browser URL hash and history state for back button navigation on mobile
+    if (typeof window !== "undefined" && window.location.hash !== `#${name}`) {
+      window.history.pushState({ screen: name }, "", `#${name}`);
+    }
+  }, [loadWeather, loadRecommendations, refreshBell, loadHistory]);
+
+  // Sync back button / popstate event
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Load initial screen from URL hash if exists.
+    // 데이터 로딩(loadWeather/loadRecommendations/refreshBell/loadHistory)은 여기서 하지 않음 —
+    // 이 효과는 마운트 시 항상 실행되는데, 아직 프로필이 복원되기 전이라 X-Profile-Id 헤더 없이
+    // 요청이 나가 422가 남(실제로 겪음: 재방문 시 URL에 이미 #home이 남아있어서 거의 매번 재현됨).
+    // 프로필 복원이 끝나면 startApp()이 setScreen("home")을 호출해서 홈 데이터는 알아서 로드됨.
+    const initialHash = window.location.hash.slice(1);
+    const validScreens = ["home", "record", "analysis", "vanity", "my", "recommend"];
+    if (initialHash && validScreens.includes(initialHash)) {
+      setScreenState(initialHash);
+      if (initialHash === "record") setModeState("apply");
+    } else {
+      window.history.replaceState({ screen: "home" }, "", "#home");
+    }
+
+    const handlePopState = (e) => {
+      if (e.state && e.state.screen) {
+        setScreenState(e.state.screen);
+        setFocusedParentZone(null);
+        const name = e.state.screen;
+        if (name === "record") setModeState("apply");
+        if (name === "home") { loadWeather(); loadRecommendations(); refreshBell(); }
+        if (name === "analysis") loadHistory();
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [loadWeather, loadRecommendations, refreshBell, loadHistory]);
 
   const setMode = useCallback((m) => {

@@ -83,6 +83,28 @@ export default function RecordScreen() {
     .filter((e) => e.product);
   const otherPendingCount = pendingApplications.length - pendingForView.length;
 
+  const pendingGroups = {};
+  pendingForView.forEach((e) => {
+    if (!pendingGroups[e.productId]) {
+      pendingGroups[e.productId] = {
+        product: e.product,
+        entries: []
+      };
+    }
+    pendingGroups[e.productId].entries.push(e);
+  });
+
+  const productGroups = {};
+  slotEntries.forEach(({ zone, product }) => {
+    if (!productGroups[product.id]) {
+      productGroups[product.id] = {
+        product,
+        zones: []
+      };
+    }
+    productGroups[product.id].zones.push(zone);
+  });
+
   return (
     <div className="screen" id="screenRecord" style={{ background: "var(--bg)" }}>
       
@@ -140,14 +162,40 @@ export default function RecordScreen() {
               <div className="sechead" style={{ marginTop: 0 }}>
                 <h3>저장 대기 중 ({pendingForView.length})</h3>
               </div>
-              <div className="record-entry-list">
-                {pendingForView.map((e) => (
-                  <div key={`${e.zone}-${e.productId}-${e.idx}`} className="record-entry-row pending">
-                    <span className="record-entry-zone">{ZONE_LABELS[e.zone] || e.zone}</span>
-                    <span className="record-entry-name">
-                      {e.product.name}{e.product.category ? ` · ${e.product.category}` : ""}{e.intent === "remove" ? " (삭제 예정)" : ""}
-                    </span>
-                    <button className="record-entry-del" onClick={() => cancelPendingApplication(e.zone, e.productId, e.date, e.slot)}>취소</button>
+              <div className="product-record-groups pending" style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>
+                {Object.values(pendingGroups).map(({ product, entries }) => (
+                  <div key={product.id} className="card" style={{ padding: "14px", background: "rgba(124, 111, 232, 0.02)", border: "1.5px dashed var(--teal-border)", borderRadius: "18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "16px" }}>⏳</span>
+                      <span style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)" }}>{product.name}</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {entries.map((e) => (
+                        <span 
+                          key={`${e.zone}-${e.idx}`} 
+                          style={{ 
+                            display: "inline-flex", 
+                            alignItems: "center", 
+                            gap: "4px", 
+                            background: e.intent === "remove" ? "rgba(239, 68, 68, 0.08)" : "var(--teal-light)", 
+                            color: e.intent === "remove" ? "#EF4444" : "var(--teal-dark)", 
+                            padding: "4px 10px", 
+                            borderRadius: "20px", 
+                            fontSize: "10px", 
+                            fontWeight: "800",
+                            border: e.intent === "remove" ? "1px solid rgba(239, 68, 68, 0.2)" : "1px solid var(--teal-border)"
+                          }}
+                        >
+                          {ZONE_LABELS[e.zone] || e.zone} {e.intent === "remove" && "(삭제 예정)"}
+                          <button 
+                            onClick={() => cancelPendingApplication(e.zone, e.productId, e.date, e.slot)}
+                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontSize: "10px", fontWeight: "bold" }}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -165,12 +213,53 @@ export default function RecordScreen() {
               <div className="sechead">
                 <h3>{slot === "am" ? "오늘 아침" : "오늘 저녁"} 기록 ({slotEntries.length})</h3>
               </div>
-              <div className="record-entry-list">
-                {slotEntries.map(({ zone, product }) => (
-                  <div key={`${zone}-${product.id}`} className="record-entry-row">
-                    <span className="record-entry-zone">{ZONE_LABELS[zone] || zone}</span>
-                    <span className="record-entry-name">{product.name}{product.category ? ` · ${product.category}` : ""}</span>
-                    <button className="record-entry-del" onClick={() => removeProductFromZone(zone, product.id)}>삭제</button>
+              <div className="product-record-groups" style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>
+                {Object.values(productGroups).map(({ product, zones }) => (
+                  <div key={product.id} className="card" style={{ padding: "14px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "16px" }}>🧴</span>
+                        <span style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)" }}>{product.name}</span>
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          if (!confirm("이 제품을 모든 부위에서 해제할까요?")) return;
+                          for (const zone of zones) {
+                            await removeProductFromZone(zone, product.id);
+                          }
+                        }}
+                        style={{ background: "none", border: "none", color: "#EF4444", fontSize: "11px", fontWeight: "800", cursor: "pointer" }}
+                      >
+                        전체 삭제
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {zones.map((zone) => (
+                        <span 
+                          key={zone} 
+                          style={{ 
+                            display: "inline-flex", 
+                            alignItems: "center", 
+                            gap: "4px", 
+                            background: "var(--teal-light)", 
+                            color: "var(--teal-dark)", 
+                            padding: "4px 10px", 
+                            borderRadius: "20px", 
+                            fontSize: "10px", 
+                            fontWeight: "800",
+                            border: "1px solid var(--teal-border)"
+                          }}
+                        >
+                          {ZONE_LABELS[zone] || zone}
+                          <button 
+                            onClick={() => removeProductFromZone(zone, product.id)}
+                            style={{ background: "none", border: "none", color: "var(--teal)", cursor: "pointer", padding: "0 2px", fontSize: "10px", fontWeight: "bold", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
