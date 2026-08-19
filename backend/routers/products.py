@@ -49,6 +49,7 @@ def list_products(profile_id: int = Depends(get_current_profile_id), db: Session
             "id": p.id,
             "name": p.name,
             "ingredients": p.ingredients,
+            "category": p.category,
             "locked": bool(locked_ing and locked_ing in p.ingredients),
             "last_used": last_used.get(p.id),
         }
@@ -91,6 +92,7 @@ def recommended_products(
             "id": p.id,
             "name": p.name,
             "ingredients": p.ingredients,
+            "category": p.category,
             "locked": bool(locked_ing and locked_ing in p.ingredients),
         }
         for p in remaining[:6]
@@ -101,7 +103,7 @@ def recommended_products(
 def create_product(
     data: ProductIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
 ):
-    product = Product(profile_id=profile_id, name=data.name, ingredients=data.ingredients)
+    product = Product(profile_id=profile_id, name=data.name, ingredients=data.ingredients, category=data.category)
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -110,7 +112,10 @@ def create_product(
         s.ingredient for s in db.query(SuspectIngredient).filter(SuspectIngredient.profile_id == profile_id).all()
     }
     warnings = [ing for ing in product.ingredients if ing in suspects]
-    return {"id": product.id, "name": product.name, "ingredients": product.ingredients, "warnings": warnings}
+    return {
+        "id": product.id, "name": product.name, "ingredients": product.ingredients,
+        "category": product.category, "warnings": warnings,
+    }
 
 
 @router.patch("/{product_id}", response_model=ProductCreateOut)
@@ -125,6 +130,7 @@ def update_product(
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
     product.name = data.name
     product.ingredients = data.ingredients
+    product.category = data.category
     db.commit()
     db.refresh(product)
 
@@ -132,7 +138,10 @@ def update_product(
         s.ingredient for s in db.query(SuspectIngredient).filter(SuspectIngredient.profile_id == profile_id).all()
     }
     warnings = [ing for ing in product.ingredients if ing in suspects]
-    return {"id": product.id, "name": product.name, "ingredients": product.ingredients, "warnings": warnings}
+    return {
+        "id": product.id, "name": product.name, "ingredients": product.ingredients,
+        "category": product.category, "warnings": warnings,
+    }
 
 
 @router.delete("/{product_id}")

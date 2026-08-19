@@ -9,6 +9,7 @@ export default function ProductModal() {
   const { open, prefill, editId, mode } = productModal;
   const [name, setName] = useState("");
   const [ing, setIng] = useState("");
+  const [category, setCategory] = useState("");
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrDone, setOcrDone] = useState(false);
 
@@ -16,6 +17,7 @@ export default function ProductModal() {
     if (open) {
       setName(prefill?.name || "");
       setIng(prefill?.ingredients?.join(", ") || "");
+      setCategory(prefill?.category || "");
       setOcrDone(false);
     }
   }, [open, prefill]);
@@ -52,7 +54,7 @@ export default function ProductModal() {
     const nameVal = name.trim();
     const ingVal = ing.split(",").map((s) => s.trim()).filter(Boolean);
     if (!nameVal || !ingVal.length) { alert("제품명과 성분을 입력해주세요"); return; }
-    await saveProduct(nameVal, ingVal, editId);
+    await saveProduct(nameVal, ingVal, editId, category);
   }
 
   return (
@@ -85,6 +87,19 @@ export default function ProductModal() {
             <div className="field">
               <label>제품명</label>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 세라마이드 수분크림" />
+            </div>
+            <div className="field">
+              <label>카테고리 (선택)</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">선택안함</option>
+                <option value="토너">토너</option>
+                <option value="에센스/세럼">에센스/세럼</option>
+                <option value="크림/로션">크림/로션</option>
+                <option value="선크림">선크림</option>
+                <option value="클렌저">클렌저</option>
+                <option value="팩/마스크">팩/마스크</option>
+                <option value="기타">기타</option>
+              </select>
             </div>
             <div className="field">
               <label>성분 (쉼표로 구분)</label>

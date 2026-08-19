@@ -148,7 +148,10 @@ export default function VanityScreen() {
               <div key={p.id} className={`prod ${p.locked ? "locked" : ""}`} style={{ padding: "14px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "12px" }}>
                 <div className="swatch" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--teal-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🧴</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="pname" style={{ fontSize: "12px", fontWeight: "800", color: "var(--text)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{p.name}{p.locked ? " 🔒" : ""}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {p.category && <span className="record-entry-zone" style={{ flexShrink: 0 }}>{p.category}</span>}
+                    <div className="pname" style={{ fontSize: "12px", fontWeight: "800", color: "var(--text)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{p.name}{p.locked ? " 🔒" : ""}</div>
+                  </div>
                   <div className="ping" style={{ fontSize: "10px", color: "var(--text-faint)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", marginTop: "2px" }}>{p.ingredients.join(" · ")}</div>
                 </div>
                 <div className="prodactions" style={{ display: "flex", gap: "8px", fontSize: "11px", fontWeight: "800" }}>

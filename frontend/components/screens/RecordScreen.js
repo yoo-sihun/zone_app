@@ -195,7 +195,10 @@ export default function RecordScreen() {
                 <div className={`prod-checkbox ${selectedProductIds.includes(p.id) ? "checked" : ""}`}>{selectedProductIds.includes(p.id) ? "✓" : ""}</div>
                 <div className="swatch" />
                 <div style={{ flex: 1 }}>
-                  <div className="pname">{p.name}{p.locked ? " 🔒" : ""}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {p.category && <span className="record-entry-zone" style={{ flexShrink: 0 }}>{p.category}</span>}
+                    <div className="pname">{p.name}{p.locked ? " 🔒" : ""}</div>
+                  </div>
                   <div className="ping">{p.ingredients.slice(0, 4).join(" · ")}</div>
                 </div>
                 <div className="prodactions">

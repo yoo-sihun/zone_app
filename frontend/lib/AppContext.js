@@ -343,8 +343,8 @@ export function AppProvider({ children }) {
   }, []);
   const closeProductModal = useCallback(() => setProductModal({ open: false, prefill: null, editId: null, mode: null }), []);
 
-  const saveProduct = useCallback(async (name, ingredients, editId) => {
-    const body = JSON.stringify({ name, ingredients });
+  const saveProduct = useCallback(async (name, ingredients, editId, category) => {
+    const body = JSON.stringify({ name, ingredients, category: category || null });
     const r = editId
       ? await api(`/api/products/${editId}`, { method: "PATCH", body })
       : await api("/api/products", { method: "POST", body });

@@ -81,6 +81,7 @@ class Product(Base):
     profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     ingredients = Column(JSON, nullable=False, default=list)  # list[str]
+    category = Column(String, nullable=True)  # 자유 문자열(예: "세럼"/"크림"/"선크림") — enum 검증 없음, skin_condition과 같은 패턴
 
 
 class DailyLog(Base):

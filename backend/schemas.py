@@ -17,12 +17,14 @@ class ProfileOut(BaseModel):
 class ProductIn(BaseModel):
     name: str
     ingredients: list[str]
+    category: str | None = None
 
 
 class ProductOut(BaseModel):
     id: int
     name: str
     ingredients: list[str]
+    category: str | None = None
     locked: bool = False
     last_used: Date | None = None
 
@@ -34,6 +36,7 @@ class ProductCreateOut(BaseModel):
     id: int
     name: str
     ingredients: list[str]
+    category: str | None = None
     warnings: list[str] = []  # ingredients that match a saved suspect ingredient
 
 
