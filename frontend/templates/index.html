@@ -112,6 +112,54 @@
     </div>
   </div>
 
+  <!-- ── 히스토리 화면 ── -->
+  <div class="screen" id="screenHistory" style="display:none">
+    <div class="segrow" id="historyRange">
+      <button data-days="7" class="on">최근 7일</button>
+      <button data-days="30">최근 30일</button>
+      <button data-days="0">전체</button>
+    </div>
+    <div class="sub" id="historySummary"></div>
+
+    <div class="face-card">
+      <svg id="historyFace" viewBox="0 0 400 440">
+        <path class="outline" d="M200,72 C272,72 322,140 322,232 C322,334 266,398 200,398 C134,398 78,334 78,232 C78,140 128,72 200,72 Z"/>
+
+        <path class="hzone" data-z="forehead" d="M104,182 C112,108 152,82 200,82 C248,82 288,108 296,182 C255,158 145,158 104,182 Z"/>
+        <text class="zlabel" x="200" y="135">이마</text>
+
+        <path class="hzone" data-z="rcheek" d="M101,196 C131,179 161,181 173,197 L173,291 C161,316 121,301 99,266 C93,241 95,216 101,196 Z"/>
+        <text class="zlabel" x="133" y="250">오른볼</text>
+
+        <path class="hzone" data-z="lcheek" d="M299,196 C269,179 239,181 227,197 L227,291 C239,316 279,301 301,266 C307,241 305,216 299,196 Z"/>
+        <text class="zlabel" x="267" y="250">왼볼</text>
+
+        <path class="hzone" data-z="nose" d="M200,186 L221,286 C221,303 210,311 200,311 C190,311 179,303 179,286 Z"/>
+        <text class="zlabel" x="200" y="252">코</text>
+
+        <path class="hzone" data-z="chin" d="M151,316 C171,309 229,309 249,316 C254,356 229,394 200,394 C171,394 146,356 151,316 Z"/>
+        <text class="zlabel" x="200" y="355">턱·입주변</text>
+
+        <ellipse class="feat" cx="148" cy="190" rx="15" ry="4"/>
+        <ellipse class="feat" cx="252" cy="190" rx="15" ry="4"/>
+        <g id="historyDots"></g>
+      </svg>
+    </div>
+
+    <div class="historylegend">
+      <div class="legenditem"><span class="legendswatch applied"></span>도포 빈도</div>
+      <div class="legenditem"><span class="legendswatch comedonal"></span>면포성</div>
+      <div class="legenditem"><span class="legendswatch papule"></span>구진</div>
+      <div class="legenditem"><span class="legendswatch pustule"></span>화농성</div>
+      <div class="legenditem"><span class="legendswatch redness"></span>붉은기</div>
+    </div>
+
+    <div class="row"><button class="btn ghost" id="historyReportBtn">📄 PDF로 내보내기</button></div>
+
+    <div class="sechead"><h3>지난 실험</h3></div>
+    <div class="explist" id="pastExpList"></div>
+  </div>
+
   <!-- ── 마이 화면 ── -->
   <div class="screen" id="screenMy" style="display:none">
     <div class="profilecard">
@@ -123,11 +171,12 @@
     <div class="row"><button class="btn ghost" id="myFactorsBtn">📋 오늘의 외부 요인</button></div>
     <div class="row"><button class="btn ghost" id="mySuspectsBtn">⚠️ 의심 성분 관리</button></div>
     <div class="row"><button class="btn ghost" id="myReportBtn">📄 PDF 리포트</button></div>
+    <div class="row"><button class="btn danger" id="deleteProfileBtn">프로필 삭제</button></div>
   </div>
 
   <nav class="bottomnav">
     <button class="navitem on" data-screen="home">🏠<span>홈</span></button>
-    <button class="navitem" id="navHistory">🗂️<span>히스토리</span></button>
+    <button class="navitem" data-screen="history">🗂️<span>히스토리</span></button>
     <button class="navitem navadd" data-screen="record">＋</button>
     <button class="navitem" data-screen="my">👤<span>마이</span></button>
   </nav>

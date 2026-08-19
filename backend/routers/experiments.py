@@ -29,6 +29,17 @@ def _to_out(exp: Experiment) -> dict:
     }
 
 
+@router.get("", response_model=list[ExperimentOut])
+def list_experiments(profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    exps = (
+        db.query(Experiment)
+        .filter(Experiment.profile_id == profile_id)
+        .order_by(Experiment.start_date.desc())
+        .all()
+    )
+    return [_to_out(e) for e in exps]
+
+
 @router.get("/active", response_model=ExperimentOut | None)
 def get_active(profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
     exp = get_active_experiment(db, profile_id)

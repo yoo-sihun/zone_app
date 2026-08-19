@@ -121,6 +121,22 @@ class ExternalFactorIn(BaseModel):
     memo: str | None = None
 
 
+class HistoryDot(BaseModel):
+    date: Date
+    zone: str
+    type: str
+    x: float
+    y: float
+
+
+class HistorySummary(BaseModel):
+    start: Date
+    end: Date
+    zone_apply_counts: dict[str, int]
+    total_applies: int
+    dots: list[HistoryDot]
+
+
 class ExternalFactorOut(BaseModel):
     date: Date
     sleep_hours: float | None

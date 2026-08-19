@@ -121,6 +121,30 @@ svg{display:block;width:100%;max-width:320px;height:auto;margin:0 auto;touch-act
 .zlabel{fill:var(--text-faint);font-size:11px;text-anchor:middle;pointer-events:none;font-weight:700}
 .zone.applied + .zlabel{fill:#F0FBF9}
 
+/* 히스토리 얼굴 (fill-opacity는 JS가 부위별로 설정) */
+.hzone{stroke:var(--surface);stroke-width:3}
+
+/* 히스토리 범례 */
+.historylegend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:6px;padding:0 2px}
+.legenditem{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text-muted);font-weight:600}
+.legendswatch{width:10px;height:10px;border-radius:50%;display:inline-block}
+.legendswatch.applied{background:var(--teal)}
+.legendswatch.comedonal{background:var(--amber)}
+.legendswatch.papule{background:var(--orange)}
+.legendswatch.pustule{background:var(--coral)}
+.legendswatch.redness{background:var(--pink)}
+
+/* 지난 실험 목록 */
+.explist{display:flex;flex-direction:column;gap:8px}
+.expitem{display:flex;justify-content:space-between;align-items:center;background:var(--surface);
+  border:1px solid var(--border);border-radius:13px;padding:12px 14px;cursor:pointer;box-shadow:var(--shadow-sm)}
+.expitemname{font-size:13px;font-weight:700;color:var(--text)}
+.expitemdate{font-size:10.5px;color:var(--text-faint);margin-top:3px}
+.expstatus{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px}
+.expstatus.active{background:var(--teal-light);color:var(--teal-dark)}
+.expstatus.completed{background:var(--green-light);color:#175C3B}
+.expstatus.stopped{background:var(--surface-alt);color:var(--text-faint)}
+
 /* 홈 — 오늘의 피부 날씨 */
 .weathercard{background:var(--surface);border:1px solid var(--border);border-radius:16px;
   padding:16px;margin-bottom:6px;box-shadow:var(--shadow-sm)}
@@ -165,7 +189,9 @@ svg{display:block;width:100%;max-width:320px;height:auto;margin:0 auto;touch-act
 .prod.on .swatch{background:var(--teal)}
 .pname{font-size:13.5px;font-weight:700;color:var(--text)}
 .ping{font-size:10.5px;color:var(--text-faint);margin-top:3px;line-height:1.35}
-.prod .del{margin-left:auto;color:var(--text-faint);font-size:11px;padding:4px 6px}
+.prodactions{margin-left:auto;display:flex;gap:10px;flex-shrink:0}
+.prodactions .edit{color:var(--teal-dark);font-size:11px}
+.prodactions .del{color:var(--text-faint);font-size:11px}
 
 .row{display:flex;gap:8px;margin-top:14px}
 .btn{flex:1;padding:13px;border-radius:12px;border:0;font-size:13px;font-weight:700;
@@ -176,6 +202,8 @@ svg{display:block;width:100%;max-width:320px;height:auto;margin:0 auto;touch-act
 .primary:hover{background:var(--teal-dark)}
 .primary:disabled{background:#D5D8DD;color:#9AA1AC;cursor:default}
 .btn.small{flex:none;padding:8px 12px;font-size:11.5px}
+.btn.danger{background:var(--coral-light);color:var(--coral);border:1.5px solid #F3C4B8}
+.btn.danger:hover{background:#FADBD5}
 
 /* 모달 공통 */
 .modal{position:fixed;inset:0;background:rgba(29,36,51,.35);display:none;

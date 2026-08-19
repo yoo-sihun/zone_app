@@ -112,11 +112,11 @@ function showScreen(name){
   document.querySelectorAll('.navitem[data-screen]').forEach(el => el.classList.toggle('on', el.dataset.screen === name));
   if(name === 'home') loadHome();
   if(name === 'my') loadMy();
+  if(name === 'history') loadHistory();
 }
 document.querySelectorAll('.navitem[data-screen]').forEach(b => {
   b.onclick = () => showScreen(b.dataset.screen);
 });
-$('#navHistory').onclick = () => openReportModal();
 
 // ══════════════════════════ 홈 화면 ══════════════════════════
 async function loadHome(){
@@ -185,6 +185,68 @@ $('#qlExperiment').onclick = () => {
 };
 $('#qlReport').onclick = () => openReportModal();
 
+// ══════════════════════════ 히스토리 화면 ══════════════════════════
+let historyDays = 7;
+document.querySelectorAll('#historyRange button').forEach(b => {
+  b.onclick = () => {
+    historyDays = +b.dataset.days;
+    document.querySelectorAll('#historyRange button').forEach(x => x.classList.toggle('on', x===b));
+    loadHistory();
+  };
+});
+$('#historyReportBtn').onclick = () => openReportModal();
+
+async function loadHistory(){
+  const end = fmt(today);
+  const start = historyDays > 0
+    ? fmt(new Date(today.getTime() - historyDays * 86400000))
+    : '2000-01-01';
+  let summary;
+  try {
+    summary = await api(`/api/history/summary?start=${start}&end=${end}`);
+  } catch(err){
+    toast(err.message, 'warn');
+    return;
+  }
+  renderHistoryFace(summary);
+  await loadPastExperiments();
+}
+function renderHistoryFace(summary){
+  const counts = summary.zone_apply_counts;
+  const maxCount = Math.max(1, ...Object.values(counts));
+  document.querySelectorAll('#historyFace .hzone').forEach(z => {
+    const zone = z.dataset.z;
+    const ratio = counts[zone] / maxCount;
+    const opacity = counts[zone] > 0 ? 0.18 + 0.72 * ratio : 0.06;
+    z.style.fill = 'var(--teal)';
+    z.style.fillOpacity = opacity;
+  });
+  $('#historyDots').innerHTML = summary.dots
+    .map(d => `<circle class="dot ${d.type}" cx="${d.x}" cy="${d.y}" r="5.5"/>`).join('');
+  const rangeLabel = historyDays > 0 ? `최근 ${historyDays}일` : '전체 기간';
+  $('#historySummary').textContent = `${rangeLabel} · 도포 ${summary.total_applies}회 · 트러블 ${summary.dots.length}건`;
+}
+
+async function loadPastExperiments(){
+  let list = [];
+  try { list = await api('/api/experiments'); } catch(e) { list = []; }
+  const el = $('#pastExpList');
+  el.innerHTML = list.length ? list.map(e => {
+    const statusLabel = { active: '진행 중', completed: '완료', stopped: '중단' }[e.status] || e.status;
+    return `
+      <div class="expitem" data-eid="${e.id}">
+        <div>
+          <div class="expitemname">${escapeHtml(e.ingredient)}</div>
+          <div class="expitemdate">${e.start_date} 시작</div>
+        </div>
+        <span class="expstatus ${e.status}">${statusLabel}</span>
+      </div>`;
+  }).join('') : '<div class="empty">아직 진행한 실험이 없습니다.</div>';
+  document.querySelectorAll('#pastExpList .expitem').forEach(item => {
+    item.onclick = () => openExpResultModal(+item.dataset.eid);
+  });
+}
+
 // ══════════════════════════ 마이 화면 ══════════════════════════
 function loadMy(){
   $('#myProfileName').textContent = currentProfileName || '-';
@@ -193,6 +255,19 @@ $('#switchProfileBtn').onclick = () => openProfilePicker(true);
 $('#myFactorsBtn').onclick = () => openFactorsModal();
 $('#mySuspectsBtn').onclick = () => openSuspectsModal();
 $('#myReportBtn').onclick = () => openReportModal();
+$('#deleteProfileBtn').onclick = async () => {
+  if(!confirm(`"${currentProfileName}" 프로필을 삭제할까요?\n제품·기록·트러블 등 모든 데이터가 함께 삭제되고 되돌릴 수 없습니다.`)) return;
+  try {
+    await fetch(`/api/profiles/${currentProfileId}`, { method: 'DELETE' });
+    localStorage.removeItem('zone_profile_id');
+    localStorage.removeItem('zone_profile_name');
+    currentProfileId = null;
+    toast('프로필을 삭제했어요', 'ok');
+    openProfilePicker(false);
+  } catch(err){
+    toast('삭제에 실패했어요', 'warn');
+  }
+};
 
 // ══════════════════════════ 알림 벨 ══════════════════════════
 async function refreshBell(){
@@ -299,16 +374,26 @@ function renderProds(){
         <div class="pname">${escapeHtml(p.name)}${p.locked ? ' 🔒' : ''}</div>
         <div class="ping">${p.ingredients.map(escapeHtml).join(' · ')}</div>
       </div>
-      <div class="del" data-del="${p.id}">삭제</div>
+      <div class="prodactions">
+        <span class="edit" data-edit="${p.id}">수정</span>
+        <span class="del" data-del="${p.id}">삭제</span>
+      </div>
     </div>`).join('') || `<div class="empty">등록된 제품이 없습니다. 위 '+ 제품 추가'로 시작하세요.</div>`;
 
   document.querySelectorAll('.prod').forEach(el => {
     el.onclick = e => {
-      if(e.target.dataset.del) return;
+      if(e.target.dataset.del || e.target.dataset.edit) return;
       if(el.classList.contains('locked')){ flash('실험 진행 중이라 잠긴 제품입니다'); return; }
       const id = +el.dataset.p;
       selectedProductId = (selectedProductId===id) ? null : id;
       renderProds(); renderFace(); setMode(mode);
+    };
+  });
+  document.querySelectorAll('[data-edit]').forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      const p = products.find(pp => pp.id === +el.dataset.edit);
+      if(p) openProductModal(p, p.id);
     };
   });
   document.querySelectorAll('[data-del]').forEach(el => {
@@ -407,11 +492,11 @@ $('#clear').onclick = async () => {
 
 // ── 제품 추가 모달 ──
 $('#addProductBtn').onclick = () => openProductModal();
-function openProductModal(prefill){
+function openProductModal(prefill, editId){
   const name = prefill?.name || '';
   const ing = prefill?.ingredients?.join(', ') || '';
   $('#productSheet').innerHTML = `
-    <h2>제품 추가</h2>
+    <h2>${editId ? '제품 수정' : '제품 추가'}</h2>
     <div class="sub">성분표 사진을 찍으면 자동으로 인식해요</div>
     <label class="ocrbtn" id="ocrTrigger">📷 성분표 사진으로 인식하기
       <input type="file" accept="image/*" capture="environment" id="ocrFile" style="display:none">
@@ -454,7 +539,10 @@ function openProductModal(prefill){
     const nameVal = $('#pfName').value.trim();
     const ingVal = $('#pfIng').value.split(',').map(s=>s.trim()).filter(Boolean);
     if(!nameVal || !ingVal.length){ alert('제품명과 성분을 입력해주세요'); return; }
-    const r = await api('/api/products', { method: 'POST', body: JSON.stringify({ name: nameVal, ingredients: ingVal }) });
+    const body = JSON.stringify({ name: nameVal, ingredients: ingVal });
+    const r = editId
+      ? await api(`/api/products/${editId}`, { method: 'PATCH', body })
+      : await api('/api/products', { method: 'POST', body });
     if(r.warnings && r.warnings.length) toast(`⚠ 의심 성분 포함: ${r.warnings.join(', ')}`, 'warn');
     closeProductModal();
     await loadProducts();
@@ -553,7 +641,7 @@ function renderExpBar(){
       <button class="expbtn" id="expResultBtn">${activeExperiment.is_complete ? '결과 보기' : '중간 확인'}</button>
       <button class="expbtn stop" id="expStopBtn">중단</button>
     </div>`;
-  $('#expResultBtn').onclick = openExpResultModal;
+  $('#expResultBtn').onclick = () => openExpResultModal();
   $('#expStopBtn').onclick = async () => {
     if(!confirm('실험을 중단할까요?')) return;
     await api(`/api/experiments/${activeExperiment.id}`, { method: 'PATCH' });
@@ -572,9 +660,10 @@ async function startExperiment(ingredient){
     alert(err.message);
   }
 }
-async function openExpResultModal(){
-  if(!activeExperiment) return;
-  const r = await api(`/api/experiments/${activeExperiment.id}/result`);
+async function openExpResultModal(experimentId){
+  const id = experimentId || activeExperiment?.id;
+  if(!id) return;
+  const r = await api(`/api/experiments/${id}/result`);
   const s = $('#miscSheet');
   s.innerHTML = `
     <h2>${escapeHtml(r.ingredient)} 실험 결과</h2>

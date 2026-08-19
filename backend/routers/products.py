@@ -70,6 +70,28 @@ def create_product(
     return {"id": product.id, "name": product.name, "ingredients": product.ingredients, "warnings": warnings}
 
 
+@router.patch("/{product_id}", response_model=ProductCreateOut)
+def update_product(
+    product_id: int,
+    data: ProductIn,
+    profile_id: int = Depends(get_current_profile_id),
+    db: Session = Depends(get_db),
+):
+    product = db.query(Product).filter(Product.id == product_id, Product.profile_id == profile_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
+    product.name = data.name
+    product.ingredients = data.ingredients
+    db.commit()
+    db.refresh(product)
+
+    suspects = {
+        s.ingredient for s in db.query(SuspectIngredient).filter(SuspectIngredient.profile_id == profile_id).all()
+    }
+    warnings = [ing for ing in product.ingredients if ing in suspects]
+    return {"id": product.id, "name": product.name, "ingredients": product.ingredients, "warnings": warnings}
+
+
 @router.delete("/{product_id}")
 def delete_product(
     product_id: int, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)

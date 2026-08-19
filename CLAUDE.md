@@ -35,10 +35,11 @@
 - `POST /api/suspects {ingredient}`로 저장해두면, 이후 `POST /api/products`로 등록하는 제품에 그 성분이 있으면 응답의 `warnings`에 표시됨
 - `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
-- **프론트 연동 완료, 홈 대시보드 + 하단 네비게이션 구조**([frontend/static/js/app.js](frontend/static/js/app.js)) — 화면 3개(홈/기록/마이)를 JS로 전환하는 SPA 형태:
+- **프론트 연동 완료, 홈 대시보드 + 하단 네비게이션 구조**([frontend/static/js/app.js](frontend/static/js/app.js)) — 화면 4개(홈/히스토리/기록/마이)를 JS로 전환하는 SPA 형태:
   - **홈**: 오늘의 피부 날씨 카드(PM2.5 실제 값 + 습도/자외선은 "준비 중"), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트)
-  - **기록**: 기존 얼굴 SVG + 제품 바른 부위/트러블 표시 — AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/3일 실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트가 다 여기
-  - **마이**: 현재 프로필 이름 + 프로필 전환, 외부 요인/의심 성분/리포트 바로가기
+  - **히스토리**: PDF·텍스트가 아니라 **얼굴 SVG에 직접 시각화**하는 화면 — 기간(7일/30일/전체) 선택하면 `/api/history/summary`로 부위별 도포 횟수(진할수록 자주 바른 부위, 틸 컬러 `fill-opacity`로 표현)와 그 기간의 트러블 점 전체(실제 x,y 좌표, 유형별 색상)를 같은 얼굴 위에 겹쳐서 보여줌 — "어디를 많이 발랐고 어디서 트러블이 났는지"를 한눈에 대조하려는 목적. `.hzone`(기록 화면의 `.zone`과 다른 클래스 — 기록 화면 탭 핸들러에 안 걸리게 분리)에 JS가 인라인으로 `fill-opacity` 설정. PDF 리포트 다운로드 버튼도 이 화면에 있음(완전히 대체한 게 아니라 같이 씀). "지난 실험" 목록(`GET /api/experiments`)도 여기 — 클릭하면 실험 결과 모달(활성/완료/중단 상관없이 다 조회 가능)
+  - **기록**: 기존 얼굴 SVG + 제품 바른 부위/트러블 표시 — AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/3일 실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트가 다 여기. 제품 목록에 "수정"(`PATCH /api/products/{id}`) 링크 추가됨(이전엔 삭제 후 재등록만 가능했음)
+  - **마이**: 현재 프로필 이름 + 프로필 전환, 외부 요인/의심 성분/리포트 바로가기, **프로필 삭제**(`DELETE /api/profiles/{id}`, 그 프로필의 모든 데이터를 연쇄 삭제하는 되돌릴 수 없는 동작 — 프론트에서 확인창 한 번만 거치므로 실수 삭제 주의)
   - 헤더의 🔔 벨 아이콘: `/api/today-status`로 오늘 기록 여부 확인해서 배지 표시 — 브라우저 꺼도 오는 진짜 푸시 아니고 앱 켰을 때만 보이는 인앱 알림
 - **디자인**: 밝은 화이트+틸 톤의 "의료/피부과학" 느낌. 사용자가 준 레퍼런스(홈 대시보드+하단 탭 구조)를 참고해서 다시 짰지만, 레퍼런스에 있던 별점/제품 사진/추천 엔진/알림 배지 중 실제 데이터가 없는 건(별점, 제품 사진) 그대로 안 넣었음 — 장식용 UI를 만들지 않는다는 원칙. 팀 프론트 담당자의 피그마 디자인이 나오면 다시 교체될 수 있음.
 
@@ -97,11 +98,12 @@ external_factors         -- 프로필+날짜당 1행, 수동 입력 + 미세먼�
 ```
 GET    /api/profiles             → [{id, name}]  -- 헤더 불필요, 프로필 선택 전에 호출함
 POST   /api/profiles             {name} → {id, name}  -- 헤더 불필요
-DELETE /api/profiles/{id}        -- 헤더 불필요
+DELETE /api/profiles/{id}        -- 헤더 불필요. 연쇄 삭제(products/daily_logs/trouble_dots/suspect_ingredients/experiments/external_factors 전부 같이 지움), 되돌리기 불가
 
 GET    /api/products             → [{id, name, ingredients, locked}]  -- locked는 진행 중인 실험 대상 성분 포함 시 true
 GET    /api/products/recommended → [{id, name, ingredients, locked}]  -- 오늘 아직 안 바른 제품 중 최대 6개(별도 추천 엔진 아님, 자기 화장대 기반)
 POST   /api/products            {name, ingredients: [str]} → {..., warnings: [str]}  -- 의심 성분 겹치면 warnings에 표시
+PATCH  /api/products/{id}       {name, ingredients: [str]} → {..., warnings: [str]}  -- 이름/성분 수정, 응답 형태는 POST와 동일
 DELETE /api/products/{id}
 POST   /api/products/ocr        (multipart image) → {name, ingredients}
 
@@ -121,6 +123,9 @@ GET    /api/suspects            → [{id, ingredient}]
 POST   /api/suspects            {ingredient} -- 이미 있으면 그냥 기존 것 반환(idempotent)
 DELETE /api/suspects/{id}
 
+GET    /api/history/summary?start=&end= → {start, end, zone_apply_counts: {zone: count}, total_applies, dots: [{date,zone,type,x,y}]}  -- 히스토리 화면(얼굴 시각화)용 집계, 기간 내 부위별 도포 횟수 + 트러블 점 전체 목록
+
+GET    /api/experiments         → 전체 실험 목록(진행중/완료/중단 다 포함), start_date 내림차순 -- 히스토리 화면 "지난 실험"에 씀
 GET    /api/experiments/active  → 진행 중인 실험 1건 또는 null
 POST   /api/experiments         {ingredient} → 실험 시작 (이미 active면 400)
 GET    /api/experiments/{id}/result → {..., before_count, during_count, improved}
@@ -167,6 +172,7 @@ backend/
     experiments.py       /api/experiments/*
     external_factors.py   /api/external-factors/*  (airkorea.fetch_pm25, weather.fetch_humidity_uv 사용)
     reports.py             /api/reports/pdf
+    history.py             /api/history/summary  (히스토리 화면 얼굴 시각화용 집계)
 
 ai/
   client.py           OpenAI 클라이언트 생성 공용 함수 (ocr.py/trouble_classify.py가 같이 씀)
