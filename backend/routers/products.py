@@ -10,6 +10,7 @@ from ..deps import get_current_profile_id
 from ..models import DailyLog, Product, SuspectIngredient
 from ..schemas import ProductIn, ProductOut, ProductCreateOut, OcrResult
 from ..experiments import locked_ingredient
+from ..analysis import _related_zones
 
 
 def _last_used_map(db: Session, profile_id: int) -> dict[int, Date]:
@@ -65,7 +66,9 @@ def recommended_products(
     today = Date.today()
     log_query = db.query(DailyLog.product_id).filter(DailyLog.profile_id == profile_id, DailyLog.date == today)
     if zone:
-        log_query = log_query.filter(DailyLog.zone == zone)
+        # 트러블/도포 기록 매칭 버그(§0)와 같은 클래스 — 서브존으로 기록된 도포를
+        # 상위부위 필터가 못 찾는 걸 막기 위해 자신+상위부위+서브존 전부로 확장해서 비교
+        log_query = log_query.filter(DailyLog.zone.in_(_related_zones(zone)))
     applied_ids = {r[0] for r in log_query.all()}
 
     locked_ing = locked_ingredient(db, profile_id, today)

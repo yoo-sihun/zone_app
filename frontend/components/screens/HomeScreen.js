@@ -136,7 +136,7 @@ export default function HomeScreen() {
       </div>
       {/* ── 2. Menu Grid (4 Quick Cards) ── */}
       <div className="quick-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "24px" }}>
-        <button className="qlbtn" onClick={() => setScreen("record")} style={{ height: "82px", padding: "12px 4px", borderRadius: "18px" }}>
+        <button className="qlbtn" onClick={() => setScreen("recommend")} style={{ height: "82px", padding: "12px 4px", borderRadius: "18px" }}>
           <div className="qlbtn-icon" style={{ fontSize: "20px", background: "none", width: "auto", height: "auto", marginBottom: "4px" }}>☀️</div>
           <span style={{ fontSize: "11px", fontWeight: "800" }}>제품 추천</span>
         </button>

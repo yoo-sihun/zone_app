@@ -1309,6 +1309,17 @@ body {
   transition: all 0.15s ease;
 }
 
+.chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+}
+.chip-row::-webkit-scrollbar { display: none; }
+.chip-row .chip { flex: 0 0 auto; white-space: nowrap; }
+
 .chip.on {
   background: var(--teal-light);
   border-color: var(--teal);
