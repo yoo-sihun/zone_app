@@ -15,8 +15,9 @@ from .routers import experiments as experiments_router
 from .routers import external_factors as external_factors_router
 from .routers import reports as reports_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
-from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES
+from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS
 from .analysis import analyze
+from .experiments import EXPERIMENT_DAYS
 
 Base.metadata.create_all(bind=engine)
 
@@ -36,7 +37,15 @@ app.include_router(reports_router.router)
 @app.get("/")
 def index(request: Request):
     return templates.TemplateResponse(
-        "index.html", {"request": request, "zones": ZONES, "zone_labels": ZONE_LABELS}
+        "index.html",
+        {
+            "request": request,
+            "zones": ZONES,
+            "zone_labels": ZONE_LABELS,
+            "trouble_types": TROUBLE_TYPES,
+            "trouble_type_labels": TROUBLE_TYPE_LABELS,
+            "experiment_days": EXPERIMENT_DAYS,
+        },
     )
 
 

@@ -11,7 +11,14 @@
 
   <header>
     <div class="logo">ZONE</div>
+    <div class="iconrow">
+      <button class="iconbtn" id="suspectsBtn" title="의심 성분">⚠ 의심성분</button>
+      <button class="iconbtn" id="factorsBtn" title="오늘의 외부 요인">📋 오늘 기록</button>
+      <button class="iconbtn" id="reportBtn" title="PDF 리포트">📄 리포트</button>
+    </div>
   </header>
+
+  <div class="expbar" id="expbar" style="display:none"></div>
 
   <div class="datebar">
     <button id="prev">‹</button>
@@ -23,6 +30,17 @@
     <button id="mApply" class="on">제품 바른 부위</button>
     <button id="mTrouble">트러블 표시</button>
   </div>
+
+  <div class="slotToggle" id="slotToggle">
+    <button data-slot="am" class="on">☀ 아침</button>
+    <button data-slot="pm">🌙 저녁</button>
+  </div>
+  <div class="typeToggle" id="typeToggle" style="display:none">
+    {% for t in trouble_types %}
+    <button data-type="{{ t }}" class="{{ 'on' if loop.first else '' }}">{{ trouble_type_labels[t] }}</button>
+    {% endfor %}
+  </div>
+
   <div class="hint" id="hint"></div>
 
   <div class="face-wrap">
@@ -70,10 +88,15 @@
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="modal" id="productModal"><div class="sheet" id="productSheet"></div></div>
+<div class="modal" id="miscModal"><div class="sheet" id="miscSheet"></div></div>
+<div class="toastwrap" id="toastwrap"></div>
 
 <script>
 window.__ZONES = {{ zones | tojson }};
 window.__ZONE_LABELS = {{ zone_labels | tojson }};
+window.__TROUBLE_TYPES = {{ trouble_types | tojson }};
+window.__TROUBLE_TYPE_LABELS = {{ trouble_type_labels | tojson }};
+window.__EXPERIMENT_DAYS = {{ experiment_days | tojson }};
 </script>
 <script src="/static/js/app.js"></script>
 </body>

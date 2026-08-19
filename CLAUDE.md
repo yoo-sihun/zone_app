@@ -35,7 +35,7 @@
 - `POST /api/suspects {ingredient}`로 저장해두면, 이후 `POST /api/products`로 등록하는 제품에 그 성분이 있으면 응답의 `warnings`에 표시됨
 - `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
-- **프론트는 아직 이 API들을 안 씀** — 프론트 담당이 피그마 디자인 완성 후 연동 예정. 지금은 백엔드 로직/스키마만 있고 UI 연결 없음.
+- **프론트 연동 완료** — [frontend/static/js/app.js](frontend/static/js/app.js)가 위 API들을 다 씀 (AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트, 외부 요인 폼, PDF 리포트 모달). 지금 디자인은 임시 UI — 피그마 디자인 완성되면 이 화면을 교체/리스타일링할 예정. 헤더의 "⚠ 의심성분/📋 오늘 기록/📄 리포트" 버튼이 각각의 진입점.
 
 **성분 조합 상성 경고** ([backend/interactions.py](backend/interactions.py))도 구현됨:
 - DB 테이블이 아니라 코드에 하드코딩된 정적 리스트(`INGREDIENT_INTERACTIONS`) — 관리자가 수시로 바꿀 데이터가 아니라서 굳이 테이블로 뺄 필요 없다고 판단함. 조합 늘리려면 이 파일에 딕셔너리만 추가하면 됨.
@@ -160,7 +160,8 @@ render.yaml           Render Blueprint (build/start command, 헬스체크, env v
 - `backend/`와 `ai/`는 둘 다 리포 루트 기준 top-level 패키지라서, `backend/routers/products.py`에서 `ai.ocr`을 import할 때 상대 임포트(`..`)가 아니라 절대 임포트(`from ai.ocr import ...`)를 씀. 실행은 항상 리포 루트에서 `uvicorn backend.main:app`으로 해야 경로가 맞음.
 - 성분표 사진은 저장하지 않고 OpenAI에 전달해 텍스트만 추출한 뒤 버림(Storage 불필요).
 - `analysis.py`의 `LAG_DAYS`(기본 3일)는 조정 가능한 상수. `experiments.py`의 `EXPERIMENT_DAYS`(기본 3일)는 별개 상수.
-- [frontend/static/js/app.js](frontend/static/js/app.js)의 분석 결과 모달에 아직 남아있는 "2주간 이 성분 빼고 써보시겠어요?" 문구는 이제 실제 백엔드(3일 실험, `/api/experiments`)와 안 맞음 — 프론트 연동할 때 "3일"로 고치거나 실제 API를 붙여야 함.
+- 분석 결과 모달의 "2주" 문구는 "3일 실험 시작" 버튼(`/api/experiments` 연동)으로 교체 완료.
+- `frontend/static/js/app.js`의 `el.isPointInFill(new DOMPoint(...))` 부분을 주의: Chromium은 `isPointInFill`에 `SVGPoint`만 받고 `DOMPoint`를 거부함(`matrixTransform()`이 반환하는 건 DOMPoint라서 그대로 넘기면 에러). `svg.createSVGPoint()`로 다시 감싸서 넘겨야 함 — 실제로 이 버그 때문에 트러블 위치 찍기가 Chrome에서 조용히 실패하고 있었음(콘솔 에러만 뜨고 API 호출 자체가 안 됨), Playwright로 직접 띄워보고 나서 발견·수정함.
 - **스키마 바꿀 때 마이그레이션 도구가 없다는 것 주의.** `Base.metadata.create_all()`은 없는 테이블만 새로 만들고, 이미 존재하는 테이블에 컬럼을 추가하지 않음. `daily_logs.time_slot`/`trouble_dots.type` 추가할 때 로컬 sqlite는 파일 지우고 새로 만들면 되지만, Supabase처럼 실데이터 있는 DB는 `ALTER TABLE ... ADD COLUMN`을 직접 실행해줘야 함(엔진에 raw SQL로). Alembic 같은 마이그레이션 툴은 없음.
 - `AIRKOREA_API_KEY`는 data.go.kr이 발급하는 **인코딩된(URL-encoded) 서비스키**를 그대로 써야 함 — [backend/airkorea.py](backend/airkorea.py)가 URL을 문자열로 직접 조립하기 때문에(httpx params로 넘기면 이중 인코딩돼서 깨짐), 키 자체가 이미 `%2F`, `%3D%3D` 같은 percent-encoding을 포함한 형태여야 정상 동작함.
 
