@@ -39,7 +39,7 @@
 - `POST /api/experiments {ingredient}`로 3일(`EXPERIMENT_DAYS`) 실험 시작 — 시작일부터 `EXPERIMENT_DAYS - 1`일 뒤까지, 그 성분이 든 제품은 `GET /api/products` 응답에서 `locked: true`로 표시되고, `POST /api/log/toggle`로 새로 바르려 하면 400 에러로 막힘 (이미 기록된 건 삭제는 가능)
 - `GET /api/experiments/{id}/result`에서 실험 시작 전 3일 vs 진행 3일의 `trouble_dots` 건수를 비교 (`before_count`/`during_count`/`improved`). 3일이 지난 뒤 이 엔드포인트를 호출하면 그 시점에 `status`가 `completed`로 바뀜(자동 배치 없음, 조회 시점에 확정).
 - **프론트 연동 완료, 홈 대시보드 + 하단 네비게이션 구조**([frontend/lib/AppContext.js](frontend/lib/AppContext.js)) — 화면 4개(홈/히스토리/기록/마이)를 JS로 전환하는 SPA 형태:
-  - **홈**: 오늘의 피부 날씨 카드(PM2.5·습도·자외선 전부 실제 값, "날씨 동기화" 버튼으로 셋 다 한번에 갱신), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트)
+  - **홈**: 오늘의 피부 날씨 카드(PM2.5·습도·자외선 전부 실제 값, "날씨 동기화" 버튼으로 셋 다 한번에 갱신), 오늘 바로 추천(자기 화장대에서 오늘 아직 안 바른 제품, `/api/products/recommended`), 바로가기(기록/의심성분/실험현황/리포트). `/api/products/recommended`는 `?zone=` 파라미터도 받음 — 특정 부위 기준으로 그 부위엔 아직 안 바르고 + 의심 성분도 없는 본인 제품만 추천(피그마 리다이자인의 부위별 추천 UI용, 아직 프론트 미연동 — 외부 업체 제품 추천은 실제 B2B 데이터 없이는 안 만듦, 나중에 붙이기 좋게 API만 열어둠)
   - **히스토리**: PDF·텍스트가 아니라 **얼굴 SVG에 직접 시각화**하는 화면 — 기간(7일/30일/전체) 선택하면 `/api/history/summary`로 부위별 도포 횟수(진할수록 자주 바른 부위, 틸 컬러 `fill-opacity`로 표현)와 그 기간의 트러블 점 전체(실제 x,y 좌표, 유형별 색상)를 같은 얼굴 위에 겹쳐서 보여줌 — "어디를 많이 발랐고 어디서 트러블이 났는지"를 한눈에 대조하려는 목적. `.hzone`(기록 화면의 `.zone`과 다른 클래스 — 기록 화면 탭 핸들러에 안 걸리게 분리)에 JS가 인라인으로 `fill-opacity` 설정. PDF 리포트 다운로드 버튼도 이 화면에 있음(완전히 대체한 게 아니라 같이 씀). "지난 실험" 목록(`GET /api/experiments`)도 여기 — 클릭하면 실험 결과 모달(활성/완료/중단 상관없이 다 조회 가능)
   - **기록**: 기존 얼굴 SVG + 제품 바른 부위/트러블 표시 — AM/PM 토글, 트러블 유형 선택, 의심 성분 저장/3일 실험 시작 버튼, 실험 진행 배너, 성분 상성 경고 토스트가 다 여기. 제품 목록에 "수정"(`PATCH /api/products/{id}`) 링크 추가됨(이전엔 삭제 후 재등록만 가능했음)
   - **마이**: 현재 프로필 이름 + 프로필 전환, 외부 요인/의심 성분/리포트 바로가기, **프로필 삭제**(`DELETE /api/profiles/{id}`, 그 프로필의 모든 데이터를 연쇄 삭제하는 되돌릴 수 없는 동작 — 프론트에서 확인창 한 번만 거치므로 실수 삭제 주의)
@@ -52,7 +52,7 @@
 - 시간대(`time_slot`)까지 일치해야 체크 대상이 됨 — 아침에 바른 성분과 저녁에 바른 성분은 실제로 섞인 적이 없으므로 상성 경고 대상에서 제외
 
 **외부 변수(수동 입력 + 미세먼지 자동 동기화) + PDF 리포트**도 구현됨:
-- `external_factors` 테이블(날짜당 1행): `POST /api/external-factors {date, sleep_hours?, menstrual_phase?, memo?}`로 upsert, `GET /api/external-factors/{date}`로 조회(없으면 null).
+- `external_factors` 테이블(날짜당 1행): `POST /api/external-factors {date, sleep_hours?, menstrual_phase?, memo?, skin_condition?}`로 upsert, `GET /api/external-factors/{date}`로 조회(없으면 null). `skin_condition`은 사용자 자가진단(예: "건성"/"보통"/"유분성") — 피그마 리다이자인의 트러블 기록 화면에 들어갈 필드로 새로 추가됨, enum 검증 없는 자유 문자열.
 - 미세먼지(PM2.5)는 [backend/airkorea.py](backend/airkorea.py)로 에어코리아 공공API 연동해서 자동 조회 가능: `POST /api/external-factors/{date}/sync-pm25` 호출하면 그 날짜의 PM2.5 시간별 평균을 가져와 `external_factors.pm25`에 저장(기존 sleep_hours/memo 등은 그대로 유지, pm25만 갱신). 자동 배치 없음 — 호출해야 채워짐. 기준 측정소는 `AIRKOREA_STATION` 환경변수(기본값 "종로구"=서울), 인증키는 `AIRKOREA_API_KEY`(data.go.kr에서 발급받은 **URL-인코딩된** 값 그대로 넣어야 함 — 다시 인코딩하면 깨짐).
 - 습도는 [backend/weather.py](backend/weather.py)로 기상청 API Hub(`apihub.kma.go.kr`, data.go.kr이 아니라 기상청 자체 포털 — 인증 파라미터명도 `serviceKey`가 아니라 `authKey`)의 **동네예보 초단기실황조회**(`getUltraSrtNcst`) 연동해서 자동 조회 가능 — 실제 관측값(nowcast)이라 **오늘 날짜만 지원**(에어코리아 PM2.5처럼 과거 날짜 조회는 안 됨, 다른 날짜로 호출하면 400). 격자 좌표는 `KMA_NX`/`KMA_NY` 환경변수(기본값 60/127, 종로구 — `AIRKOREA_STATION` 기본값과 같은 지역), 인증키는 `KMA_API_KEY`(순수 영숫자라 에어코리아 서비스키와 달리 URL 재인코딩 걱정 없음, httpx `params`로 그냥 넘기면 됨).
 - 자외선지수는 초단기실황이 아니라 **공공데이터포털(data.go.kr)**의 "기상청_생활기상지수 조회서비스"(`getUVIdxV5`) 별도 연동 — 3시간 단위 예보값이라 현재시각을 3시간 단위로 내림한 발표시간으로 조회하고 그 시점(`h0`) 값을 씀, 아직 발표 전이면 이전 발표시간으로 최대 3번 재시도. 인증키는 `KMA_UV_API_KEY`(에어코리아 서비스키처럼 URL-인코딩된 값 그대로 써야 함 — `KMA_API_KEY`의 `authKey`와는 다른 포털·다른 인코딩 방식이라 헷갈리지 말 것), 지점코드는 `KMA_AREA_NO`(기본값 `1100000000`=서울). `KMA_UV_API_KEY`만 없으면 습도는 정상 반환하고 `uv_index`만 `None`으로 채움(전체를 실패시키지 않음).
@@ -86,7 +86,7 @@ experiments              -- 3일 성분 제외 실험
   id, profile_id, ingredient, start_date, status(active|completed|stopped), created_at
 
 external_factors         -- 프로필+날짜당 1행, 수동 입력 + 미세먼지/습도/자외선 자동 동기화
-  id, profile_id, date, sleep_hours, menstrual_phase, memo, pm25, humidity, uv_index
+  id, profile_id, date, sleep_hours, menstrual_phase, memo, pm25, humidity, uv_index, skin_condition
   unique(profile_id, date)
 ```
 
@@ -105,7 +105,7 @@ POST   /api/profiles             {name} → {id, name}  -- 헤더 불필요
 DELETE /api/profiles/{id}        -- 헤더 불필요. 연쇄 삭제(products/daily_logs/trouble_dots/suspect_ingredients/experiments/external_factors 전부 같이 지움), 되돌리기 불가
 
 GET    /api/products             → [{id, name, ingredients, locked}]  -- locked는 진행 중인 실험 대상 성분 포함 시 true
-GET    /api/products/recommended → [{id, name, ingredients, locked}]  -- 오늘 아직 안 바른 제품 중 최대 6개(별도 추천 엔진 아님, 자기 화장대 기반)
+GET    /api/products/recommended → [{id, name, ingredients, locked}]  -- 오늘 아직 안 바른 제품 중 최대 6개(별도 추천 엔진 아님, 자기 화장대 기반). ?zone= 넘기면 그 부위 기준으로 필터링(그 부위엔 아직 안 바른 제품 중 의심 성분 든 것 + 잠긴 것 제외) — zone 없으면 기존 동작(전체 부위 기준) 그대로
 POST   /api/products            {name, ingredients: [str]} → {..., warnings: [str]}  -- 의심 성분 겹치면 warnings에 표시
 PATCH  /api/products/{id}       {name, ingredients: [str]} → {..., warnings: [str]}  -- 이름/성분 수정, 응답 형태는 POST와 동일
 DELETE /api/products/{id}
@@ -135,7 +135,7 @@ POST   /api/experiments         {ingredient} → 실험 시작 (이미 active면
 GET    /api/experiments/{id}/result → {..., before_count, during_count, improved}
 PATCH  /api/experiments/{id}    → 중단(status=stopped)
 
-POST   /api/external-factors    {date, sleep_hours?, menstrual_phase?, memo?} -- upsert (pm25는 건드리지 않음)
+POST   /api/external-factors    {date, sleep_hours?, menstrual_phase?, memo?, skin_condition?} -- upsert (pm25/humidity/uv_index는 건드리지 않음, sync-* 엔드포인트로만 채워짐). skin_condition은 자유 문자열(예: "건성"/"보통"/"유분성") — 백엔드에 enum 검증 없음, menstrual_phase와 같은 패턴
 GET    /api/external-factors/{date} → 값 또는 null
 POST   /api/external-factors/{date}/sync-pm25 → 에어코리아에서 그 날짜 PM2.5 평균 가져와 저장
 POST   /api/external-factors/{date}/sync-weather → 기상청 초단기실황조회(습도) + 생활기상지수(자외선지수) 저장. **오늘 날짜만 지원** — 다른 날짜면 400, `KMA_API_KEY` 없으면 501. `KMA_UV_API_KEY`만 없으면 습도만 채워지고 uv_index는 null

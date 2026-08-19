@@ -35,6 +35,7 @@ def upsert_external_factor(
     factor.sleep_hours = data.sleep_hours
     factor.menstrual_phase = data.menstrual_phase
     factor.memo = data.memo
+    factor.skin_condition = data.skin_condition
     db.commit()
     db.refresh(factor)
     return factor

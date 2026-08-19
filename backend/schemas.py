@@ -119,6 +119,7 @@ class ExternalFactorIn(BaseModel):
     sleep_hours: float | None = None
     menstrual_phase: str | None = None
     memo: str | None = None
+    skin_condition: str | None = None
 
 
 class HistoryDot(BaseModel):
@@ -145,6 +146,7 @@ class ExternalFactorOut(BaseModel):
     pm25: float | None = None
     humidity: float | None = None
     uv_index: float | None = None
+    skin_condition: str | None = None
 
     class Config:
         from_attributes = True

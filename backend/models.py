@@ -138,9 +138,8 @@ class Experiment(Base):
 
 
 class ExternalFactor(Base):
-    """Per-day context: sleep/menstrual phase/memo are manually entered (POST upserts),
-    pm25 is fetched on demand from AirKorea. humidity/uv_index are scaffolded for a
-    future 기상청(KMA) integration — nullable, nothing writes them yet."""
+    """Per-day context: sleep/menstrual phase/memo/skin_condition are manually entered
+    (POST upserts). pm25/humidity/uv_index are fetched on demand (AirKorea / KMA)."""
     __tablename__ = "external_factors"
 
     id = Column(Integer, primary_key=True)
@@ -152,5 +151,6 @@ class ExternalFactor(Base):
     pm25 = Column(Float, nullable=True)
     humidity = Column(Float, nullable=True)
     uv_index = Column(Float, nullable=True)
+    skin_condition = Column(String, nullable=True)  # 사용자 자가진단, 예: "건성"/"보통"/"유분성"
 
     __table_args__ = (UniqueConstraint("profile_id", "date", name="uq_external_factor_profile_date"),)
