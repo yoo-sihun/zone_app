@@ -246,6 +246,11 @@ export function AppProvider({ children }) {
     });
     setFocusedParentZone(null);
   }, []);
+  const goToDate = useCallback((date) => {
+    if (date > todayRef.current) return; // 미래 날짜는 선택 불가
+    setCurrentDate(new Date(date));
+    setFocusedParentZone(null);
+  }, []);
 
   // currentDate가 바뀔 때마다 하루치 기록을 다시 불러옴
   useEffect(() => {
@@ -426,7 +431,7 @@ export function AppProvider({ children }) {
     slot, setSlot,
     troubleType, setTroubleType,
     focusedParentZone, zoomTo, zoomOut,
-    currentDate, goPrevDay, goNextDay,
+    currentDate, goPrevDay, goNextDay, goToDate,
     products, selectedProductId, setSelectedProductId,
     suspects, activeExperiment,
     dayData,

@@ -3,11 +3,12 @@
 import { useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import FaceRecord from "@/components/FaceRecord";
+import WeekStrip from "@/components/WeekStrip";
 
 export default function RecordScreen() {
   const {
-    config, currentDate, today, goPrevDay, goNextDay,
-    setMode, slot, setSlot,
+    config, slot, setSlot,
+    setMode,
     focusedParentZone, hint,
     products, selectedProductId, setSelectedProductId,
     deleteProduct, openProductModal,
@@ -18,9 +19,6 @@ export default function RecordScreen() {
 
   if (!config) return null;
   const ZONE_LABELS = config.zone_labels;
-
-  const diffDays = Math.round((today - currentDate) / 86400000);
-  const dlabel = diffDays === 0 ? <b>오늘</b> : diffDays > 0 ? <b>{diffDays}일 전</b> : <b>{-diffDays}일 후</b>;
 
   function hintText() {
     if (hint) return hint;
@@ -43,16 +41,18 @@ export default function RecordScreen() {
 
   return (
     <div className="screen" id="screenRecord">
-      <div className="datebar">
-        <button className="navbtn" onClick={goPrevDay}>‹</button>
-        <div className="dlabel">{dlabel}</div>
-        <button className="navbtn" disabled={currentDate >= today} onClick={goNextDay}>›</button>
+      <div className="record-slot-hero">
+        <div className="record-slot-icon">{slot === "am" ? "☀️" : "🌙"}</div>
+        <div style={{ flex: 1 }}>
+          <h3>{slot === "am" ? "오늘 아침에 사용한 제품을 기록해볼까요?" : "오늘 저녁에 사용한 제품을 기록해볼까요?"}</h3>
+        </div>
+        <div className="record-slot-toggle">
+          <button className={slot === "am" ? "on" : ""} onClick={() => setSlot("am")}>☀️ 아침</button>
+          <button className={slot === "pm" ? "on" : ""} onClick={() => setSlot("pm")}>🌙 저녁</button>
+        </div>
       </div>
 
-      <div className="segrow">
-        <button className={slot === "am" ? "on" : ""} onClick={() => setSlot("am")}>☀️ 아침 스킨케어</button>
-        <button className={slot === "pm" ? "on" : ""} onClick={() => setSlot("pm")}>🌙 저녁 스킨케어</button>
-      </div>
+      <WeekStrip />
 
       <div className="hint" style={hint ? { color: "#E14B48" } : undefined}>{hintText()}</div>
 

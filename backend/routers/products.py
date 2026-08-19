@@ -2,6 +2,7 @@ from datetime import date as Date
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from openai import OpenAIError
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -9,6 +10,17 @@ from ..deps import get_current_profile_id
 from ..models import DailyLog, Product, SuspectIngredient
 from ..schemas import ProductIn, ProductOut, ProductCreateOut, OcrResult
 from ..experiments import locked_ingredient
+
+
+def _last_used_map(db: Session, profile_id: int) -> dict[int, Date]:
+    """product_id -> 가장 최근 발린 날짜. 한 번도 안 쓴 제품은 이 맵에 없음(= None 처리)."""
+    rows = (
+        db.query(DailyLog.product_id, func.max(DailyLog.date))
+        .filter(DailyLog.profile_id == profile_id)
+        .group_by(DailyLog.product_id)
+        .all()
+    )
+    return {product_id: last_date for product_id, last_date in rows}
 
 # Product에 아직 source 컬럼은 없음 — 지금은 화장대(본인 등록) 제품만 취급.
 # 나중에 실제 B2B 제휴로 외부 카탈로그가 생기면, recommended_products가 두 소스를 합쳐서
@@ -21,14 +33,23 @@ router = APIRouter(prefix="/api/products", tags=["products"])
 
 @router.get("", response_model=list[ProductOut])
 def list_products(profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
+    """최근 사용한 순서로 정렬 — 한 번도 안 쓴 제품은 맨 뒤(등록 순)."""
     locked_ing = locked_ingredient(db, profile_id, Date.today())
+    last_used = _last_used_map(db, profile_id)
     products = db.query(Product).filter(Product.profile_id == profile_id).all()
+
+    def sort_key(p):
+        used = last_used.get(p.id)
+        return (used is None, -used.toordinal() if used else 0)
+
+    products.sort(key=sort_key)
     return [
         {
             "id": p.id,
             "name": p.name,
             "ingredients": p.ingredients,
             "locked": bool(locked_ing and locked_ing in p.ingredients),
+            "last_used": last_used.get(p.id),
         }
         for p in products
     ]

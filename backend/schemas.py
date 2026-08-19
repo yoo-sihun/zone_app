@@ -24,6 +24,7 @@ class ProductOut(BaseModel):
     name: str
     ingredients: list[str]
     locked: bool = False
+    last_used: Date | None = None
 
     class Config:
         from_attributes = True
