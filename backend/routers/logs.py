@@ -1,6 +1,7 @@
 from datetime import date as Date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from openai import OpenAIError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -8,6 +9,8 @@ from ..models import DailyLog, TroubleDot, Product, ZONES, TIME_SLOTS, TROUBLE_T
 from ..schemas import LogToggleIn, DotIn, DaySnapshot
 from ..experiments import locked_ingredient
 from ..interactions import check_interactions
+
+from ai.trouble_classify import classify_trouble
 
 router = APIRouter(prefix="/api", tags=["logs"])
 
@@ -122,6 +125,20 @@ def clear_day(day: Date, db: Session = Depends(get_db)):
     db.query(DailyLog).filter(DailyLog.date == day).delete()
     db.commit()
     return {"ok": True}
+
+
+@router.post("/dots/classify")
+async def classify_dot(file: UploadFile = File(...)):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="이미지 파일을 업로드해주세요")
+    image_bytes = await file.read()
+    try:
+        result = classify_trouble(image_bytes, mime_type=file.content_type)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except OpenAIError as e:
+        raise HTTPException(status_code=502, detail=f"AI 판단 실패: {e}")
+    return result
 
 
 @router.post("/dots")

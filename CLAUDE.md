@@ -9,7 +9,7 @@
 - DB: `DATABASE_URL` 환경변수가 없으면 로컬 sqlite(`zone.db`) 자동 사용. 지정하면 아무 Postgres(Supabase 포함)든 연결 가능 — 하지만 Supabase Auth/Storage/RLS는 안 씀, 순수 커넥션 문자열로만 사용.
 - 인증: **없음.** 로그인/회원가입 기능 자체를 제거함 — 모든 데이터는 사용자 구분 없이 전역으로 저장되는 단일 사용자 앱. `users` 테이블도 없음.
 - 프론트: FastAPI가 Jinja2 템플릿을 직접 서빙(`frontend/templates`) + 바닐라 JS(`frontend/static`). 별도 Vercel/Next.js 없음.
-- OCR: OpenAI Vision(`gpt-4o-mini`, JSON 응답 모드)으로 성분표 사진 → 성분 리스트. `ai/ocr.py`.
+- AI(OpenAI Vision, `gpt-4o-mini`, JSON 응답 모드): 성분표 사진 → 성분 리스트(`ai/ocr.py`), 트러블 사진 → 유형 추천(`ai/trouble_classify.py`, 베타). 클라이언트 생성은 `ai/client.py`에 공용화. **`openai` 패키지는 반드시 1.54+ 써야 함** — 1.51.0 등 구버전은 최신 `httpx`(0.28+)와 호환이 안 돼서 `OpenAI()` 생성 시점에 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`로 죽음. 실제로 겪은 문제라 requirements.txt에 `openai==1.59.9`로 고정해둠 — 낮춰서 재현하지 말 것.
 - 배포: Render 단일 서비스 (`render.yaml`).
 
 실행법·환경변수는 [README.md](README.md) 참고.
@@ -95,6 +95,7 @@ POST   /api/log/copy-previous?day=  -- 전날 기록을 오늘로 복사 (time_s
 DELETE /api/log/{date}
 
 POST   /api/dots                {date, zone, type, x, y}
+POST   /api/dots/classify       (multipart image) → {type: comedonal|papule|pustule|redness|null}  -- AI 추천값, null이면 판단 실패(사용자가 직접 선택해야 함)
 DELETE /api/dots/{id}
 
 GET    /api/analysis            → analyze() 결과. ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots 필드 포함, 응답에 상황별 안내 message 필드 포함
@@ -147,7 +148,9 @@ backend/
     reports.py             /api/reports/pdf
 
 ai/
+  client.py           OpenAI 클라이언트 생성 공용 함수 (ocr.py/trouble_classify.py가 같이 씀)
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
+  trouble_classify.py  OpenAI Vision으로 트러블 사진 → 유형 추천 (베타, 사용자가 확인/수정 가능해야 함)
 
 render.yaml           Render Blueprint (build/start command, 헬스체크, env var 목록)
 ```

@@ -1,6 +1,7 @@
 from datetime import date as Date
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from openai import OpenAIError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -59,4 +60,6 @@ async def ocr_product(file: UploadFile = File(...)):
         result = extract_ingredients(image_bytes, mime_type=file.content_type)
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
+    except OpenAIError as e:
+        raise HTTPException(status_code=502, detail=f"OCR 인식 실패: {e}")
     return result

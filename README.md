@@ -6,6 +6,7 @@
 - 트러블이 난 위치와 유형(면포성/구진/화농성/붉은기)을 얼굴 위에 직접 표시
 - 트러블 난 부위 vs 안 난 부위(대조군)에 최근 며칠간 발린 성분을 비교해서 의심 성분을 추려줌
 - 제품 등록 시 성분표 사진을 찍으면 OpenAI Vision으로 자동 인식(OCR)
+- 트러블 표시 시 사진을 찍으면 AI가 유형(면포성/구진/화농성/붉은기)을 추천 (베타, 사용자가 직접 확인/수정 가능)
 - 의심 성분을 저장해두면 새 제품 등록 시 자동으로 경고
 - 의심 성분을 3일간 빼고 써보는 실험 추적 (전후 트러블 건수 비교)
 - 같은 날 같은 부위·시간대에 겹쳐 바른 성분 조합이 상성 경고 대상(AHA/BHA+레티놀 등)이면 기록 즉시 안내
@@ -87,7 +88,9 @@ backend/
     reports.py             /api/reports/pdf
 
 ai/
+  client.py           OpenAI 클라이언트 생성 공용 함수
   ocr.py             OpenAI Vision으로 성분표 사진 → 성분 리스트 추출
+  trouble_classify.py  OpenAI Vision으로 트러블 사진 → 유형 추천 (베타)
 
 render.yaml           Render 배포 설정 (Blueprint)
 ```
@@ -111,5 +114,8 @@ render.yaml           Render 배포 설정 (Blueprint)
 ## 참고
 
 - 로그인/회원가입 없음 — 모든 데이터는 사용자 구분 없이 전역으로 저장됨(해커톤 데모용, 단일 사용자 전제)
-- 성분표 사진은 저장하지 않고 OpenAI에 전달해 텍스트만 추출한 뒤 버림 (Storage 불필요)
+- 성분표/트러블 사진은 저장하지 않고 OpenAI에 전달해 결과만 추출한 뒤 버림 (Storage 불필요)
 - 분석 로직의 `LAG_DAYS`(기본 3일)는 `backend/analysis.py`에서 조정 가능
+- **`openai` 패키지 버전 낮추지 말 것.** `1.51.0` 같은 구버전은 최신 `httpx`(0.28+)와 안 맞아서
+  `OpenAI()` 클라이언트를 만드는 순간 `TypeError: unexpected keyword argument 'proxies'`로 죽음.
+  실제로 겪은 문제라 `openai==1.59.9`로 고정해둠(OCR/AI 유형 판단 둘 다 이 문제로 원래 안 되고 있었음).

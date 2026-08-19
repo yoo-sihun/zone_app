@@ -1,21 +1,7 @@
 import base64
 import json
-import os
 
-from openai import OpenAI
-
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY 환경변수가 설정되어 있지 않습니다")
-        _client = OpenAI(api_key=api_key)
-    return _client
-
+from .client import get_client
 
 PROMPT = """이 이미지는 화장품 제품의 성분표(또는 제품 패키지) 사진입니다.
 다음 JSON 형식으로만 응답하세요. 다른 설명은 붙이지 마세요.
@@ -29,7 +15,7 @@ PROMPT = """이 이미지는 화장품 제품의 성분표(또는 제품 패키�
 
 
 def extract_ingredients(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
-    client = _get_client()
+    client = get_client()
     b64 = base64.b64encode(image_bytes).decode("utf-8")
     resp = client.chat.completions.create(
         model="gpt-4o-mini",

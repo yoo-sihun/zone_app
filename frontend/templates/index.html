@@ -43,6 +43,10 @@
     <button data-type="{{ t }}" class="{{ 'on' if loop.first else '' }}">{{ trouble_type_labels[t] }}</button>
     {% endfor %}
   </div>
+  <label class="ocrbtn" id="troubleAiTrigger" style="display:none">
+    📷 사진으로 AI 유형 판단 (베타)
+    <input type="file" accept="image/*" capture="environment" id="troubleAiFile" style="display:none">
+  </label>
 
   <div class="hint" id="hint"></div>
 

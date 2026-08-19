@@ -79,6 +79,7 @@ function setMode(m){
   $('#applyUI').style.display = m==='apply' ? '' : 'none';
   $('#slotToggle').style.display = m==='apply' ? 'flex' : 'none';
   $('#typeToggle').style.display = m==='trouble' ? 'flex' : 'none';
+  $('#troubleAiTrigger').style.display = m==='trouble' ? 'block' : 'none';
   $('#hint').textContent = m==='apply'
     ? (selectedProductId
         ? `"${products.find(p=>p.id===selectedProductId)?.name}" → 바른 부위를 탭하세요 (${currentSlot==='am'?'아침':'저녁'})`
@@ -103,6 +104,30 @@ document.querySelectorAll('#typeToggle button').forEach(b => {
     setMode(mode);
   };
 });
+
+$('#troubleAiTrigger').onclick = () => $('#troubleAiFile').click();
+$('#troubleAiFile').onchange = async () => {
+  const file = $('#troubleAiFile').files[0];
+  if(!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  toast('AI가 사진을 확인하고 있어요…', 'ok');
+  try {
+    const result = await api('/api/dots/classify', { method: 'POST', body: fd });
+    if(result.type){
+      currentType = result.type;
+      document.querySelectorAll('#typeToggle button').forEach(x => x.classList.toggle('on', x.dataset.type === result.type));
+      setMode(mode);
+      toast(`AI 추천: ${TROUBLE_TYPE_LABELS[result.type]} — 다르면 위에서 직접 골라주세요`, 'ok');
+    } else {
+      toast('AI가 유형을 판단하지 못했어요. 직접 선택해주세요', 'warn');
+    }
+  } catch(err){
+    toast(err.message, 'warn');
+  } finally {
+    $('#troubleAiFile').value = '';
+  }
+};
 
 // ── 제품 목록 ──
 async function loadProducts(){
