@@ -24,6 +24,7 @@
   2. 각 트러블 발생일마다 해당 부위에 `LAG_DAYS`(기본 3일) 이내 발린 제품들의 성분을 집계(`hits`)
   3. `good_zones`에도 쓰인 성분(`safe`)은 의심 목록에서 제외
   4. 남은 성분을 사용 빈도순으로 정렬해 `suspects`로 반환
+  5. 응답에 상황별 안내 문구(`message`)도 같이 반환 — 트러블 기록 없음 / 대조군(안 난 부위) 없음 / 겹치는 성분 없음 / 기록 기간이 `LAG_DAYS`보다 짧음 / 정상적으로 N일치 분석함, 5가지 상태를 서버에서 판단해서 문자열로 내려줌. 프론트는 이 문구를 그대로 표시하면 되고, "데이터 충분한지" 판단 로직을 프론트에서 다시 만들 필요 없음.
 - 아직 없는 것: 자외선 자동 연동(기상청 API 별도 필요, 미세먼지와 다른 기관), 바코드 스캔 — §5 "향후 아이디어" 참고.
 
 **AM/PM 구분 + 트러블 유형**은 구현됨:
@@ -95,7 +96,7 @@ DELETE /api/log/{date}
 POST   /api/dots                {date, zone, type, x, y}
 DELETE /api/dots/{id}
 
-GET    /api/analysis            → analyze() 결과. ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots 필드 포함
+GET    /api/analysis            → analyze() 결과. ?type=comedonal|papule|pustule|redness 로 특정 트러블 유형만 필터링 가능. suspects 각 항목에 time_slots 필드 포함, 응답에 상황별 안내 message 필드 포함
 
 GET    /api/suspects            → [{id, ingredient}]
 POST   /api/suspects            {ingredient} -- 이미 있으면 그냥 기존 것 반환(idempotent)

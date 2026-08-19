@@ -63,6 +63,7 @@ class AnalysisOut(BaseModel):
     good_zones: list[str]
     events: int
     suspects: list[Suspect]
+    message: str
 
 
 class SuspectIn(BaseModel):
