@@ -17,3 +17,5 @@ services:
         sync: false
       - key: AIRKOREA_STATION
         value: 종로구
+      - key: KMA_API_KEY
+        sync: false

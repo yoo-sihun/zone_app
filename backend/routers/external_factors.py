@@ -74,8 +74,12 @@ def sync_pm25(day: Date, profile_id: int = Depends(get_current_profile_id), db: 
 def sync_weather(day: Date, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)):
     try:
         result = fetch_humidity_uv(day)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=501, detail=str(e))
+    except HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"기상청 API 호출 실패: {e}")
 
     factor = _get_or_create(db, profile_id, day)
     factor.humidity = result.get("humidity")

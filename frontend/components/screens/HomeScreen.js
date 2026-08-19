@@ -11,13 +11,17 @@ export default function HomeScreen() {
   } = useApp();
 
   async function onSyncWeather() {
-    try {
-      await api(`/api/external-factors/${fmtToday()}/sync-pm25`, { method: "POST" });
-      pushToast("미세먼지 정보를 갱신했어요", "ok");
-      loadWeather();
-    } catch (err) {
-      pushToast(err.message, "warn");
+    const results = await Promise.allSettled([
+      api(`/api/external-factors/${fmtToday()}/sync-pm25`, { method: "POST" }),
+      api(`/api/external-factors/${fmtToday()}/sync-weather`, { method: "POST" }),
+    ]);
+    const [pm25, weather] = results;
+    if (pm25.status === "fulfilled" || weather.status === "fulfilled") {
+      pushToast("날씨 정보를 갱신했어요", "ok");
     }
+    if (pm25.status === "rejected") pushToast(`미세먼지: ${pm25.reason.message}`, "warn");
+    if (weather.status === "rejected") pushToast(`습도: ${weather.reason.message}`, "warn");
+    loadWeather();
   }
 
   function fmtToday() {
@@ -50,7 +54,7 @@ export default function HomeScreen() {
             <div className="wvalue">{weather?.uv_index != null ? weather.uv_index : "준비 중"}</div>
           </div>
         </div>
-        <button className="btn ghost small" type="button" onClick={onSyncWeather}>미세먼지 동기화</button>
+        <button className="btn ghost small" type="button" onClick={onSyncWeather}>날씨 동기화</button>
       </div>
 
       <div className="sechead"><h3>오늘의 스킨케어 추천</h3></div>
