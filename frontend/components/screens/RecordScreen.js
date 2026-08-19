@@ -13,6 +13,7 @@ export default function RecordScreen() {
     products, selectedProductId, setSelectedProductId,
     deleteProduct, openProductModal,
     copyPrevious, clearDay, openTroubleScreen, flash,
+    dayData,
   } = useApp();
 
   useEffect(() => { setMode("apply"); }, [setMode]);
@@ -38,6 +39,48 @@ export default function RecordScreen() {
     if (!confirm("이 제품을 삭제할까요? (기록된 사용 이력도 함께 지워집니다)")) return;
     await deleteProduct(id);
   }
+
+  // Live client-side calculation of combination warnings
+  const INGREDIENT_INTERACTIONS = [
+    { a: "비타민C", b: "레티놀", desc: "동시 사용 시 피부 자극이 커질 수 있어요. 아침/저녁으로 나눠 바르는 걸 권장합니다." },
+    { a: "AHA", b: "레티놀", desc: "각질 제거 효과가 겹쳐 자극·홍조 위험이 높습니다." },
+    { a: "BHA", b: "레티놀", desc: "각질 제거 효과가 겹쳐 자극·홍조 위험이 높습니다." },
+    { a: "벤조일퍼옥사이드", b: "레티놀", desc: "레티놀을 산화시켜 효과를 떨어뜨리고 자극을 유발할 수 있습니다." },
+    { a: "비타민C", b: "나이아신아마이드", desc: "낮은 pH에서 만나면 일시적으로 홍조를 유발할 수 있습니다." },
+    { a: "AHA", b: "BHA", desc: "각질 제거 성분을 동시에 고농도로 사용하면 자극이 커질 수 있습니다." }
+  ];
+
+  function getSlotWarnings() {
+    const activeIngredients = new Set();
+    const appliedProductIds = new Set();
+    
+    if (dayData && dayData.log) {
+      Object.keys(dayData.log).forEach((zone) => {
+        const slotProdIds = dayData.log[zone][slot] || [];
+        slotProdIds.forEach((pid) => appliedProductIds.add(pid));
+      });
+    }
+    
+    appliedProductIds.forEach((pid) => {
+      const prod = products.find((p) => p.id === pid);
+      if (prod) {
+        prod.ingredients.forEach((ing) => activeIngredients.add(ing));
+      }
+    });
+
+    const activeList = Array.from(activeIngredients);
+    const warnings = [];
+    INGREDIENT_INTERACTIONS.forEach((pair) => {
+      const hasA = activeList.some((ing) => ing.includes(pair.a));
+      const hasB = activeList.some((ing) => ing.includes(pair.b));
+      if (hasA && hasB) {
+        warnings.push(pair);
+      }
+    });
+    return warnings;
+  }
+
+  const slotWarnings = getSlotWarnings();
 
   return (
     <div className="screen" id="screenRecord">
@@ -92,7 +135,18 @@ export default function RecordScreen() {
           )) : <div className="empty">등록된 제품이 없습니다. 화장대에서 먼저 등록해주세요.</div>}
         </div>
 
-        <div className="row utility-buttons">
+        {/* Dynamic Combination warnings banner list */}
+        {slotWarnings.map((w, idx) => (
+          <div key={idx} className="warning-alert-card">
+            <span className="warning-alert-icon">⚠️</span>
+            <div className="warning-alert-content">
+              <span className="warning-alert-title">{w.a} + {w.b} 조합 주의</span>
+              <span className="warning-alert-desc">{w.desc}</span>
+            </div>
+          </div>
+        ))}
+
+        <div className="row utility-buttons" style={{ marginTop: 20 }}>
           <button className="btn ghost" onClick={copyPrevious}>🔄 어제와 동일하게</button>
           <button className="btn ghost" onClick={clearDay}>🗑️ 전체 기록 초기화</button>
         </div>

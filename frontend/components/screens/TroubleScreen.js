@@ -61,50 +61,84 @@ export default function TroubleScreen() {
       </div>
       <div className="sub">트러블이 난 위치와 유형을 기록해주세요.</div>
 
-      <div className="typeToggle">
-        {TROUBLE_TYPES.map((t) => (
-          <button key={t} className={troubleType === t ? "on" : ""} onClick={() => setTroubleType(t)}>
-            {TROUBLE_TYPE_LABELS[t]}
-          </button>
-        ))}
+      <div className="typeToggle" style={{ marginBottom: 16 }}>
+        {TROUBLE_TYPES.map((t) => {
+          let emoji = "🟡";
+          if (t === "papule") emoji = "🟠";
+          if (t === "pustule") emoji = "🔴";
+          if (t === "redness") emoji = "💗";
+          return (
+            <button key={t} className={troubleType === t ? "on" : ""} onClick={() => setTroubleType(t)}>
+              {emoji} {TROUBLE_TYPE_LABELS[t]}
+            </button>
+          );
+        })}
       </div>
 
-      <label className="ocrbtn trouble-ai-btn">
+      <label className="ocrbtn trouble-ai-btn" style={{ marginBottom: 14 }}>
         <span className="btn-icon">📸</span> AI로 사진 분석 유형 판단 (베타)
         <input ref={aiFileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={onAiFile} />
       </label>
 
-      <div className="hint">얼굴 부위를 탭하여 해당 영역을 확대한 뒤 트러블 위치를 지정하세요.</div>
+      <div className="hint" style={{ marginBottom: 12 }}>얼굴 부위를 터치하면 유형이 선택됩니다.</div>
 
       <FaceRecord />
 
-      <div className="sechead"><h3>외부 / 생활 요인</h3></div>
-      <div className="factorgrid">
-        <div className="weatheritem">
-          <div className="wlabel">오늘 날씨</div>
-          <div className="wvalue">{weather?.pm25 != null ? `${weather.pm25} ㎍/㎥` : "-"}</div>
+      <div className="sechead" style={{ marginTop: 20 }}><h3>외부 / 생활 요인</h3></div>
+      <div className="factor-grid">
+        <div className="factor-card">
+          <div className="factor-icon" style={{ color: '#5F5AF6' }}>☁️</div>
+          <div className="factor-info">
+            <span className="factor-label">오늘 날씨</span>
+            <span className="factor-value">{weather?.pm25 != null ? `${weather.pm25} ㎍/㎥` : "-"}</span>
+          </div>
         </div>
-        <div className="weatheritem">
-          <div className="wlabel">자외선 지수</div>
-          <div className="wvalue">{weather?.uv_index != null ? weather.uv_index : "-"}</div>
+        
+        <div className="factor-card">
+          <div className="factor-icon" style={{ color: '#F97316' }}>☀️</div>
+          <div className="factor-info">
+            <span className="factor-label">자외선 지수</span>
+            <span className="factor-value">{weather?.uv_index != null ? `높음 (${weather.uv_index})` : "-"}</span>
+          </div>
         </div>
-        <div className="weatheritem">
-          <div className="wlabel">수면 시간</div>
-          <input type="number" step="0.5" min="0" max="24" value={f.sleep} onChange={(e) => f.setSleep(e.target.value)} placeholder="시간" />
+
+        <div className="factor-card">
+          <div className="factor-icon" style={{ color: '#8B5CF6' }}>🌙</div>
+          <div className="factor-info" style={{ flex: 1 }}>
+            <span className="factor-label">수면 시간</span>
+            <input 
+              type="number" 
+              step="0.5" 
+              min="0" 
+              max="24" 
+              value={f.sleep} 
+              onChange={(e) => f.setSleep(e.target.value)} 
+              placeholder="시간 입력"
+              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12, fontWeight: 800, padding: 0, marginTop: 2, color: 'var(--text)', width: '100%' }}
+            />
+          </div>
         </div>
-        <div className="weatheritem">
-          <div className="wlabel">현재 피부</div>
-          <select value={f.skinCondition} onChange={(e) => f.setSkinCondition(e.target.value)}>
-            <option value="">선택</option>
-            <option value="건성">건성</option>
-            <option value="보통">보통</option>
-            <option value="유분성">유분성</option>
-            <option value="복합성">복합성</option>
-          </select>
+
+        <div className="factor-card">
+          <div className="factor-icon" style={{ color: '#EC4899' }}>💧</div>
+          <div className="factor-info" style={{ flex: 1 }}>
+            <span className="factor-label">현재 피부</span>
+            <select 
+              value={f.skinCondition} 
+              onChange={(e) => f.setSkinCondition(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12, fontWeight: 800, padding: 0, marginTop: 2, color: 'var(--text)', width: '100%' }}
+            >
+              <option value="">선택안함</option>
+              <option value="건성">건성</option>
+              <option value="보통">보통</option>
+              <option value="유분성">유분성</option>
+              <option value="복합성">복합성</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="row action-buttons">
+      <div className="row action-buttons" style={{ marginTop: 20 }}>
         <button className="btn primary main-action" onClick={onSaveRecord}>기록 저장</button>
       </div>
     </div>

@@ -30,6 +30,7 @@
 
   --green: #10B981;       /* Emerald 500 - Success states */
   --green-light: #ECFDF5; /* Emerald 50 */
+  --green-border: #A7F3D0; /* Emerald 200 */
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
@@ -1698,3 +1699,603 @@ body {
   color: #065F46;
 }
 
+
+/* ── 14. 신규 피그마 라벤더 UI 구성 클래스 ── */
+
+/* 얼굴 핫스팟 버튼 */
+.hotspot-btn {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--teal-border);
+  color: var(--teal-dark);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  z-index: 5;
+}
+
+.hotspot-btn span {
+  color: var(--teal);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.hotspot-btn:hover {
+  border-color: var(--teal);
+  background: var(--teal-light);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.hotspot-btn.forehead { top: 32%; left: 50%; }
+.hotspot-btn.rcheek { top: 58%; left: 24%; }
+.hotspot-btn.lcheek { top: 58%; left: 76%; }
+.hotspot-btn.nose { top: 55%; left: 50%; }
+.hotspot-btn.chin { top: 82%; left: 50%; }
+
+/* 줌인 시 핫스팟 숨김 */
+.face-svg:not(.zoomed-out) ~ .hotspot-btn {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 화장대 빈 상태 카드 */
+.empty-shelf-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.empty-shelf-image {
+  font-size: 44px;
+  width: 68px;
+  height: 68px;
+  background: var(--surface-alt);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-shelf-card h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.empty-shelf-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 등록 가이드 리스트 */
+.guide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.guide-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.guide-item:hover {
+  border-color: var(--teal);
+  transform: translateY(-1px);
+}
+
+.guide-item.warning-style {
+  background: #FFF5F5;
+  border-color: #FED7D7;
+}
+
+.guide-item.warning-style .guide-icon {
+  background: #FFF0F0;
+  color: var(--coral);
+}
+
+.guide-item.warning-style .guide-title {
+  color: #C53030;
+}
+
+.guide-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.guide-content {
+  flex: 1;
+}
+
+.guide-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 2px;
+}
+
+.guide-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.guide-arrow {
+  font-size: 16px;
+  color: var(--text-faint);
+  margin-left: 8px;
+  font-weight: 700;
+}
+
+/* 경고 알림 박스 (조합 주의 등) */
+.warning-alert-card {
+  background: #FFF5F5;
+  border: 1.5px solid #FED7D7;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.2s ease;
+}
+
+.warning-alert-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.warning-alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.warning-alert-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #C53030;
+}
+
+.warning-alert-desc {
+  font-size: 11px;
+  color: #E53E3E;
+  line-height: 1.4;
+}
+
+/* 외부 요인 입력 그리드 카드 */
+.factor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.factor-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.factor-card:hover {
+  border-color: var(--teal);
+  background: var(--surface-alt);
+}
+
+.factor-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.factor-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.factor-label {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.factor-value {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+/* 분석 프로세스 플로우 */
+.process-flow {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  margin-top: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.process-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin-top: 8px;
+}
+
+.process-steps::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.process-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  z-index: 2;
+}
+
+.process-step-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  margin-bottom: 6px;
+  transition: all 0.2s ease;
+}
+
+.process-step-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.process-step-desc {
+  font-size: 8.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+.process-step.active .process-step-icon {
+  background: var(--teal);
+  color: white;
+  border-color: var(--teal);
+  box-shadow: 0 4px 8px rgba(124, 111, 232, 0.25);
+}
+
+/* 대조군 분석 프로그레스 바 */
+.compare-row {
+  margin-top: 12px;
+}
+
+.compare-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.compare-bar {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.compare-bar-fill {
+  height: 100%;
+  background: var(--teal);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.compare-bar-fill.normal {
+  background: var(--teal-border);
+}
+
+/* 3일 실험 타임라인 트래커 */
+.experiment-timeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  padding: 10px 16px;
+}
+
+.experiment-timeline::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background: var(--border);
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.experiment-timeline-fill {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  height: 3px;
+  background: var(--teal);
+  transform: translateY(-50%);
+  z-index: 1.5;
+  transition: width 0.3s ease;
+}
+
+.experiment-day-node {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-faint);
+  z-index: 2;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.experiment-day-node.active {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: white;
+  box-shadow: 0 4px 10px rgba(124, 111, 232, 0.25);
+}
+
+.experiment-day-node.passed {
+  border-color: var(--teal);
+  background: var(--teal-light);
+  color: var(--teal);
+}
+
+.experiment-day-sub {
+  position: absolute;
+  top: 38px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.experiment-day-node.active .experiment-day-sub {
+  color: var(--teal);
+  font-weight: 800;
+}
+
+/* 실험 결과 카드 */
+.experiment-results-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.experiment-result-card {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.experiment-result-card.success-style {
+  background: var(--green-light);
+  border-color: #A7F3D0;
+}
+
+.experiment-result-card .card-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.experiment-result-card.success-style .card-label {
+  color: #047857;
+}
+
+.experiment-result-card .card-num {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.experiment-result-card.success-style .card-num {
+  color: #047857;
+}
+
+.reduction-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--green);
+  color: white;
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+/* 리포트 가이드 아이템 */
+.report-zone-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.report-zone-table th, .report-zone-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-zone-table th {
+  font-weight: 700;
+  color: var(--text-faint);
+}
+
+.report-zone-table td {
+  font-weight: 600;
+}
+
+.report-zone-table tr:last-child td {
+  border-bottom: none;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.status-badge.danger { background: var(--coral-light); color: var(--coral); }
+.status-badge.warning { background: var(--orange-light); color: var(--orange); }
+.status-badge.dry { background: var(--amber-light); color: #92400E; }
+.status-badge.good { background: var(--green-light); color: #15803D; }
+
+/* 부위별 분석 & 가이드 */
+.guide-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.guide-detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.guide-detail-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.guide-detail-body {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.guide-detail-body b {
+  color: var(--text);
+}
+
+.guide-detail-products {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.guide-detail-product-card {
+  flex: 1;
+  background: var(--surface-alt);
+  border-radius: 10px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.guide-detail-product-card .prod-icon {
+  font-size: 14px;
+}
+
+.guide-detail-product-card .prod-name {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

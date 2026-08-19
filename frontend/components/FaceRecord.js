@@ -139,6 +139,16 @@ export default function FaceRecord() {
             ))}
           </g>
         </svg>
+
+        {zoomedOut && (
+          <>
+            <button className="hotspot-btn forehead" onClick={(e) => { e.stopPropagation(); zoomTo("forehead"); }}>이마 <span>+</span></button>
+            <button className="hotspot-btn rcheek" onClick={(e) => { e.stopPropagation(); zoomTo("rcheek"); }}>오른쪽 볼 <span>+</span></button>
+            <button className="hotspot-btn lcheek" onClick={(e) => { e.stopPropagation(); zoomTo("lcheek"); }}>왼쪽 볼 <span>+</span></button>
+            <button className="hotspot-btn nose" onClick={(e) => { e.stopPropagation(); zoomTo("nose"); }}>코 <span>+</span></button>
+            <button className="hotspot-btn chin" onClick={(e) => { e.stopPropagation(); zoomTo("chin"); }}>턱 <span>+</span></button>
+          </>
+        )}
       </div>
     </div>
   );
