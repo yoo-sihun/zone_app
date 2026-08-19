@@ -33,7 +33,7 @@ export default function VanityScreen() {
       </div>
       
       <div className="guide-list">
-        <div className="guide-item" onClick={() => openProductModal()}>
+        <div className="guide-item" onClick={() => openProductModal(null, null, "manual")}>
           <div className="guide-icon">✏️</div>
           <div className="guide-content">
             <div className="guide-title">이름/성분 직접 입력</div>
@@ -42,7 +42,7 @@ export default function VanityScreen() {
           <div className="guide-arrow">›</div>
         </div>
 
-        <div className="guide-item" onClick={() => openProductModal()}>
+        <div className="guide-item" onClick={() => openProductModal(null, null, "ocr")}>
           <div className="guide-icon">📷</div>
           <div className="guide-content">
             <div className="guide-title">전성표 촬영 (OCR)</div>

@@ -59,7 +59,7 @@ export function AppProvider({ children }) {
   const [bellLogged, setBellLogged] = useState(true);
 
   // ── 모달 ──
-  const [productModal, setProductModal] = useState({ open: false, prefill: null, editId: null });
+  const [productModal, setProductModal] = useState({ open: false, prefill: null, editId: null, mode: null });
   const [analysisModal, setAnalysisModal] = useState({ open: false, data: null });
   const [miscModal, setMiscModal] = useState({ open: false, kind: null });
 
@@ -307,10 +307,10 @@ export function AppProvider({ children }) {
   }, [loadDay]);
 
   // ── 제품 ──
-  const openProductModal = useCallback((prefill, editId) => {
-    setProductModal({ open: true, prefill: prefill || null, editId: editId || null });
+  const openProductModal = useCallback((prefill, editId, mode) => {
+    setProductModal({ open: true, prefill: prefill || null, editId: editId || null, mode: mode || null });
   }, []);
-  const closeProductModal = useCallback(() => setProductModal({ open: false, prefill: null, editId: null }), []);
+  const closeProductModal = useCallback(() => setProductModal({ open: false, prefill: null, editId: null, mode: null }), []);
 
   const saveProduct = useCallback(async (name, ingredients, editId) => {
     const body = JSON.stringify({ name, ingredients });
