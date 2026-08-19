@@ -317,17 +317,22 @@ export function AppProvider({ children }) {
     setPendingApplications((prev) => prev.filter((e) => !(e.zone === zone && e.productId === productId && e.date === date && e.slot === entrySlot)));
   }, []);
 
-  // 대기열에 쌓인 걸 순서대로 커밋 — 같은 배치 안에서 상성 경고가 서로를 올바르게 반영하도록 Promise.all 대신 순서대로 await
+  // 대기열에 쌓인 걸 요청 한 번으로 순서대로 커밋(/log/toggle-batch) — 예전엔 항목마다 따로
+  // 요청을 보내서(N번 네트워크 왕복) 저장 버튼을 눌러도 한참 걸리는 것처럼 느껴졌음. 서버가 같은
+  // 순서 보장으로 한 번에 처리해서, 상성 경고 정확도는 그대로 유지하면서 왕복은 1번으로 줄임.
   const commitPendingApplications = useCallback(async () => {
     if (!pendingApplications.length) { flash("변경사항이 없어요"); return; }
     let appliedCount = 0, removedCount = 0;
     const allWarnings = [];
     try {
-      for (const { zone, productId, date, slot: entrySlot } of pendingApplications) {
-        const r = await api("/api/log/toggle", {
-          method: "POST",
-          body: JSON.stringify({ date, zone, time_slot: entrySlot, product_id: productId }),
-        });
+      const items = pendingApplications.map(({ zone, productId, date, slot: entrySlot }) => (
+        { date, zone, time_slot: entrySlot, product_id: productId }
+      ));
+      const { results } = await api("/api/log/toggle-batch", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      });
+      for (const r of results) {
         if (r.applied) appliedCount++; else removedCount++;
         if (r.warnings && r.warnings.length) allWarnings.push(...r.warnings);
       }
@@ -355,6 +360,20 @@ export function AppProvider({ children }) {
         body: JSON.stringify({ date: fmt(currentDate), zone, time_slot: slot, product_id: productId }),
       });
       pushToast(r.applied ? "저장됐어요 ✓" : "지웠어요", "ok");
+      refreshBell();
+    } catch (err) {
+      alert(err.message);
+    }
+    await loadDay();
+  }, [currentDate, slot, pushToast, refreshBell, loadDay]);
+
+  // "전체 삭제"(한 제품을 여러 부위에서 한 번에 해제)용 — 부위 수만큼 따로 요청하지 않고 배치로 한 번에
+  const removeProductFromZones = useCallback(async (zones, productId) => {
+    try {
+      const items = zones.map((zone) => ({ date: fmt(currentDate), zone, time_slot: slot, product_id: productId }));
+      const { results } = await api("/api/log/toggle-batch", { method: "POST", body: JSON.stringify({ items }) });
+      const removedCount = results.filter((r) => !r.applied).length;
+      pushToast(removedCount > 1 ? `${removedCount}개 지웠어요` : "지웠어요", "ok");
       refreshBell();
     } catch (err) {
       alert(err.message);
@@ -531,7 +550,7 @@ export function AppProvider({ children }) {
     historyDays, setHistoryDays, historySummary, pastExperiments,
     bellLogged, refreshBell,
     pendingApplications, stageApply, cancelPendingApplication, commitPendingApplications,
-    removeProductFromZone, placeDot, deleteDot,
+    removeProductFromZone, removeProductFromZones, placeDot, deleteDot,
     productModal, openProductModal, closeProductModal, saveProduct, deleteProduct,
     copyPrevious, clearDay,
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,

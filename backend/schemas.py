@@ -52,6 +52,10 @@ class LogToggleIn(BaseModel):
     product_id: int
 
 
+class LogToggleBatchIn(BaseModel):
+    items: list[LogToggleIn]
+
+
 class DotIn(BaseModel):
     date: Date
     zone: str

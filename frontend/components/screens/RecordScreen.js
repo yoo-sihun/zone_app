@@ -15,7 +15,7 @@ export default function RecordScreen() {
     products, selectedProductIds, toggleProductSelection,
     deleteProduct, openProductModal,
     copyPrevious, clearDay, flash,
-    dayData, removeProductFromZone,
+    dayData, removeProductFromZone, removeProductFromZones,
     pendingApplications, cancelPendingApplication, commitPendingApplications,
     deleteDot, troubleType, setTroubleType, weather, loadWeather, pushToast
   } = useApp();
@@ -224,9 +224,7 @@ export default function RecordScreen() {
                       <button 
                         onClick={async () => {
                           if (!confirm("이 제품을 모든 부위에서 해제할까요?")) return;
-                          for (const zone of zones) {
-                            await removeProductFromZone(zone, product.id);
-                          }
+                          await removeProductFromZones(zones, product.id);
                         }}
                         style={{ background: "none", border: "none", color: "#EF4444", fontSize: "11px", fontWeight: "800", cursor: "pointer" }}
                       >

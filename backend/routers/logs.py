@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import get_current_profile_id
 from ..models import DailyLog, TroubleDot, Product, ZONES, TIME_SLOTS, TROUBLE_TYPES
-from ..schemas import LogToggleIn, DotIn, DaySnapshot, TodayStatus
+from ..schemas import LogToggleIn, LogToggleBatchIn, DotIn, DaySnapshot, TodayStatus
 from ..experiments import locked_ingredient
 from ..interactions import check_interactions
 
@@ -41,10 +41,11 @@ def get_today_status(profile_id: int = Depends(get_current_profile_id), db: Sess
     return {"date": today, "logged": logged}
 
 
-@router.post("/log/toggle")
-def toggle_log(
-    data: LogToggleIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
-):
+def _toggle_one(db: Session, profile_id: int, data: LogToggleIn) -> dict:
+    """토글 한 건 처리 — commit까지 하지만 그 이후 로직(HTTP 응답 등)은 호출자 책임.
+    /log/toggle과 /log/toggle-batch가 이 함수를 공유함 — 배치는 이걸 순서대로 여러 번 불러서
+    "이전 항목이 반영된 상태에서 다음 항목의 상성 체크"가 정확히 되게 함(요청 한 번 안에서 순차 처리라
+    네트워크 왕복 없이 같은 보장을 유지)."""
     if data.zone not in ZONES:
         raise HTTPException(status_code=400, detail="알 수 없는 부위입니다")
     if data.time_slot not in TIME_SLOTS:
@@ -63,7 +64,7 @@ def toggle_log(
     if existing:
         db.delete(existing)
         db.commit()
-        return {"applied": False}
+        return {"applied": False, "warnings": []}
 
     locked_ing = locked_ingredient(db, profile_id, data.date)
     if locked_ing:
@@ -103,6 +104,23 @@ def toggle_log(
         ingredient_set.update(p.ingredients)
 
     return {"applied": True, "warnings": check_interactions(ingredient_set)}
+
+
+@router.post("/log/toggle")
+def toggle_log(
+    data: LogToggleIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    return _toggle_one(db, profile_id, data)
+
+
+@router.post("/log/toggle-batch")
+def toggle_log_batch(
+    data: LogToggleBatchIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    """여러 건을 요청 한 번으로 순차 처리 — 프론트의 '기록 저장'(대기열 커밋)이 항목마다
+    따로 요청을 보내면 원격 서버(Render) 왕복이 그만큼 쌓여서 체감 저장 속도가 느려지는 문제를
+    해결하려고 추가함. 순서 보장 + 상성 체크 정확도는 /log/toggle과 동일(§0 참고)."""
+    return {"results": [_toggle_one(db, profile_id, item) for item in data.items]}
 
 
 @router.post("/log/copy-previous")
