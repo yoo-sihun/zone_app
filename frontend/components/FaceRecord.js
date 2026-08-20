@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useApp } from "@/lib/AppContext";
 
 export default function FaceRecord() {
@@ -9,6 +9,9 @@ export default function FaceRecord() {
     zoomTo, zoomOut, stageApply, pendingApplications, placeDot, deleteDot,
   } = useApp();
   const svgRef = useRef(null);
+  // 도포 모드 기본값은 큰 부위 1탭 = 즉시 도포(확대 없이). 서브존 단위로 정밀하게 찍고 싶을 때만
+  // 켜는 토글 — 트러블 모드는 위치 정밀도가 분석에 직접 쓰이므로 이 토글과 무관하게 항상 확대 후 지정.
+  const [preciseMode, setPreciseMode] = useState(false);
 
   if (!config) return null;
   const SUB_TO_PARENT = config.sub_to_parent;
@@ -35,6 +38,11 @@ export default function FaceRecord() {
     const parentZone = SUB_TO_PARENT[clickedZone] || clickedZone;
 
     if (!focusedParentZone) {
+      if (mode === "apply" && !preciseMode) {
+        e.stopPropagation();
+        stageApply(parentZone);
+        return;
+      }
       zoomTo(parentZone);
       return;
     }
@@ -58,14 +66,20 @@ export default function FaceRecord() {
   const svgClass = ["face-svg", zoomedOut ? "zoomed-out" : "", focusedParentZone ? `focus-${focusedParentZone}` : ""]
     .filter(Boolean).join(" ");
 
+  // 정밀 모드가 꺼져있으면 서브존이 아니라 상위부위 코드로 기록되므로("forehead"),
+  // 서브존 도형을 하이라이트할 때도 자기 자신 + 상위부위 코드 둘 다 확인해야 함.
   function isApplied(zone) {
-    const slotIds = (dayData.log[zone] && dayData.log[zone][slot]) || [];
-    return selectedProductIds.some((id) => slotIds.includes(id));
+    const parent = SUB_TO_PARENT[zone] || zone;
+    return [zone, parent].some((z) => {
+      const slotIds = (dayData.log[z] && dayData.log[z][slot]) || [];
+      return selectedProductIds.some((id) => slotIds.includes(id));
+    });
   }
 
   function isPending(zone) {
     const dateStr = fmt(currentDate);
-    return pendingApplications.some((e) => e.zone === zone && e.date === dateStr && e.slot === slot);
+    const parent = SUB_TO_PARENT[zone] || zone;
+    return pendingApplications.some((e) => (e.zone === zone || e.zone === parent) && e.date === dateStr && e.slot === slot);
   }
 
   function zoneClass(zone) {
@@ -82,6 +96,14 @@ export default function FaceRecord() {
         {!zoomedOut && (
           <button className="zoom-out-btn" onClick={(e) => { e.stopPropagation(); zoomOut(); }}>
             ⤢ 전체보기
+          </button>
+        )}
+        {zoomedOut && mode === "apply" && (
+          <button
+            className={`precise-apply-btn ${preciseMode ? "on" : ""}`}
+            onClick={(e) => { e.stopPropagation(); setPreciseMode((v) => !v); }}
+          >
+            🎯 정밀 도포 {preciseMode ? "켜짐" : "꺼짐"}
           </button>
         )}
         <svg ref={svgRef} id="face" className={svgClass} viewBox="0 0 400 440" onClick={handleClick}>

@@ -798,6 +798,34 @@ body {
   transform: scale(1.05);
 }
 
+/* 정밀 도포 토글 — 우측 하단, 도포 모드에서 확대 없이 큰 부위 1탭으로 기록하는 기본 흐름의
+   예외 스위치(서브존 단위로 정밀하게 찍고 싶을 때만 켬) */
+.precise-apply-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  color: white;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+.precise-apply-btn.on {
+  background: var(--teal);
+}
+
+.precise-apply-btn:hover {
+  transform: scale(1.05);
+}
+
 /* SVG 세부 영역 스타일 */
 .outline {
   fill: #FFFFFF; /* Pure White face base */
