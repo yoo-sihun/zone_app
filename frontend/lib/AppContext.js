@@ -466,6 +466,17 @@ export function AppProvider({ children }) {
     await loadProducts();
   }, [activeExperiment, loadActiveExperiment, loadProducts]);
 
+  // 시연/데모용 — 실제로 하루 기다리지 않고 진행 중인 실험을 하루 앞당김
+  const advanceExperimentDay = useCallback(async () => {
+    try {
+      await api(`/api/experiments/${activeExperiment.id}/advance-day`, { method: "POST" });
+      await loadActiveExperiment();
+      pushToast("실험을 하루 앞당겼어요", "ok");
+    } catch (err) {
+      alert(err.message);
+    }
+  }, [activeExperiment, loadActiveExperiment, pushToast]);
+
   const closeMisc = useCallback(() => setMiscModal({ open: false, kind: null }), []);
 
   const openSuspectsModal = useCallback(async () => {
@@ -554,7 +565,7 @@ export function AppProvider({ children }) {
     productModal, openProductModal, closeProductModal, saveProduct, deleteProduct,
     copyPrevious, clearDay,
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,
-    startExperiment, stopExperiment, openExpResultModal, openStartExperimentModal,
+    startExperiment, stopExperiment, advanceExperimentDay, openExpResultModal, openStartExperimentModal,
     miscModal, closeMisc, openSuspectsModal, openFactorsModal, openReportModal,
     loadSuspects,
     hint, flash, setHint,

@@ -1,4 +1,4 @@
-from datetime import date as Date
+from datetime import date as Date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -86,6 +86,29 @@ def get_result(
         exp.status = "completed"
         db.commit()
     return {**_to_out(exp), **result}
+
+
+@router.post("/{experiment_id}/advance-day", response_model=ExperimentOut)
+def advance_day(
+    experiment_id: int, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+):
+    """데모/시연용 — 실제로 하루가 지나가길 기다리지 않고 start_date를 하루 앞당겨서
+    day_count를 즉시 한 칸 전진시킴. 실험 진행 상황이 서버의 실제 오늘 날짜 기준으로만
+    계산되는 것과는 별개로, 이 엔드포인트는 그 기준 날짜(start_date)를 당기는 것뿐이라
+    다른 로직(analyze의 LAG_DAYS 등)에는 영향 없음."""
+    exp = (
+        db.query(Experiment)
+        .filter(Experiment.id == experiment_id, Experiment.profile_id == profile_id)
+        .first()
+    )
+    if not exp:
+        raise HTTPException(status_code=404, detail="실험을 찾을 수 없습니다")
+    if exp.status != "active":
+        raise HTTPException(status_code=400, detail="진행 중인 실험만 앞당길 수 있습니다")
+    exp.start_date -= timedelta(days=1)
+    db.commit()
+    db.refresh(exp)
+    return _to_out(exp)
 
 
 @router.patch("/{experiment_id}")
