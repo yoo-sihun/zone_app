@@ -10,7 +10,10 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
-from .models import DailyLog, TroubleDot, Product, SuspectIngredient, ExternalFactor, ZONE_LABELS, TROUBLE_TYPE_LABELS
+from .models import (
+    DailyLog, TroubleDot, Product, SuspectIngredient, ExternalFactor,
+    ZONE_LABELS, TROUBLE_TYPE_LABELS, MEDICAL_DISCLAIMER,
+)
 
 FONT_NAME = "NanumSquare"
 FONT_PATH = os.path.join(os.path.dirname(__file__), "fonts", "NanumSquareR.ttf")
@@ -131,7 +134,7 @@ def generate_report_pdf(db: Session, profile_id: int, start: Date, end: Date) ->
 
     story.append(
         Paragraph(
-            "본 서비스는 의료적 진단이나 치료를 대신할 수 없으며, 질환 의심 시 피부과 전문의와 상담하세요.",
+            MEDICAL_DISCLAIMER,
             disc_style,
         )
     )

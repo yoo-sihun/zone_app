@@ -62,11 +62,11 @@ def recommended_products(
     zone: str | None = None, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
 ):
     """화장대에 등록된 제품 기반 추천 — 별도 추천 엔진/외부 카탈로그 없이 본인 제품만.
-    zone 없으면: 오늘 아직 하나도 안 바른 제품(기존 홈 화면용 동작, 그대로 유지).
+    zone 없으면: 오늘 아직 하나도 안 바른 제품(기존 홈 화면용 "오늘 뭐 바를까" 후보 산정 기준은 그대로 유지).
     zone 있으면: 추가로 그 부위 도포 기록만 대상으로 필터링.
-    의심 성분이 든 제품과 잠긴(실험 중) 제품은 zone 유무와 무관하게 항상 추천에서 제외함
-    (의심 성분 0% 제품만 추천 — 화장품법상 부당 효능 표시 오인을 피하려면 애초에
-    의심되는 제품을 추천 후보에조차 올리지 않는 게 안전함)."""
+    의심 성분이 든 제품과 잠긴(실험 중) 제품은 zone 유무와 무관하게 **항상** 추천에서 제외함(예전엔
+    zone 지정 시에만 걸렀음 — 의심 성분 0% 제품만 추천하는 게 안전해서 홈 화면 쪽도 통일함).
+    이 필터 자체는 zone 유무와 무관하게 항상 적용되는, 이 함수 전체의 새 동작임."""
     today = Date.today()
     log_query = db.query(DailyLog.product_id).filter(DailyLog.profile_id == profile_id, DailyLog.date == today)
     if zone:

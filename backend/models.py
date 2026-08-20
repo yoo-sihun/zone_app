@@ -2,6 +2,10 @@ from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, JSON
 
 from .database import Base
 
+# 의료법/화장품법 준수용 면책 문구 — 원인분석/실험결과/분석리포트(화면+PDF) 전부 이 한 곳에서만
+# 관리(예전엔 프론트 4곳+PDF에 문구가 각각 하드코딩돼있었음). 문구 바꿀 땐 여기만 고치면 됨.
+MEDICAL_DISCLAIMER = "본 서비스는 의료적 진단이나 치료를 대신할 수 없으며, 질환 의심 시 피부과 전문의와 상담하세요."
+
 ZONES = [
     "forehead", "rcheek", "lcheek", "nose", "chin",
     "forehead_left", "forehead_right",

@@ -249,6 +249,7 @@ export function AppProvider({ children }) {
 
   const setMode = useCallback((m) => {
     setModeState(m);
+    setFocusedParentZone(null); // 모드 전환 시 확대 상태가 다른 모드로 그대로 넘어가지 않게(setScreen과 동일하게)
   }, []);
 
   // ── 줌 ──
@@ -482,11 +483,12 @@ export function AppProvider({ children }) {
         body: JSON.stringify({ start_date: newDate }),
       });
       await loadActiveExperiment();
+      await loadProducts(); // 날짜를 옮기면 잠금 상태가 바로 바뀔 수 있어서(창을 벗어나면 즉시 해제) 같이 새로고침
       pushToast("실험 진행일을 조정했어요", "ok");
     } catch (err) {
       alert(err.message);
     }
-  }, [activeExperiment, loadActiveExperiment, pushToast]);
+  }, [activeExperiment, loadActiveExperiment, loadProducts, pushToast]);
 
   const closeMisc = useCallback(() => setMiscModal({ open: false, kind: null }), []);
 

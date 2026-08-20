@@ -149,10 +149,7 @@ export default function AnalysisModal() {
           </div>
           {activeExperiment && <div className="expnote" style={{ color: 'var(--coral)', fontSize: 11, marginTop: 6, fontWeight: 700 }}>이미 &quot;{activeExperiment.ingredient}&quot; 실험이 진행 중이에요.</div>}
         </div>
-        <div className="disc">
-          본 서비스는 의료적 진단이나 치료를 대신할 수 없으며,<br />
-          질환 의심 시 피부과 전문의와 상담하세요.
-        </div>
+        <div className="disc">{config.disclaimer}</div>
         <div className="row" style={{ marginTop: 16 }}><button className="btn ghost" onClick={closeAnalysisModal}>닫기</button></div>
       </div>
     </div>

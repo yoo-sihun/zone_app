@@ -116,7 +116,7 @@ POST   /api/profiles             {name} → {id, name}  -- 헤더 불필요
 DELETE /api/profiles/{id}        -- 헤더 불필요. 연쇄 삭제(products/daily_logs/trouble_dots/suspect_ingredients/experiments/external_factors 전부 같이 지움), 되돌리기 불가
 
 GET    /api/products             → [{id, name, ingredients, locked, last_used}]  -- locked는 진행 중인 실험 대상 성분 포함 시 true. **최근 사용한 순서로 정렬됨**(제품별 `daily_logs` 최대 날짜 기준, 한 번도 안 쓴 제품은 맨 뒤) — `last_used`는 그 날짜(없으면 null)
-GET    /api/products/recommended → [{id, name, ingredients, locked}]  -- 오늘 아직 안 바른 제품 중 최대 6개(별도 추천 엔진 아님, 자기 화장대 기반). ?zone= 넘기면 그 부위 기준으로 필터링(그 부위엔 아직 안 바른 제품 중 의심 성분 든 것 + 잠긴 것 제외) — zone 없으면 기존 동작(전체 부위 기준) 그대로
+GET    /api/products/recommended → [{id, name, ingredients, locked}]  -- 오늘 아직 안 바른 제품 중 최대 6개(별도 추천 엔진 아님, 자기 화장대 기반). 의심 성분 든 것 + 잠긴(실험 중) 것은 zone 유무와 무관하게 항상 제외(성분 배제 원칙) — ?zone= 넘기면 그 부위 기준(그 부위엔 아직 안 바른 제품)으로 추가 필터링, 없으면 전체 부위 기준
 POST   /api/products            {name, ingredients: [str]} → {..., warnings: [str]}  -- 의심 성분 겹치면 warnings에 표시
 PATCH  /api/products/{id}       {name, ingredients: [str]} → {..., warnings: [str]}  -- 이름/성분 수정, 응답 형태는 POST와 동일
 DELETE /api/products/{id}

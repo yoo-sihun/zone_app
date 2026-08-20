@@ -39,8 +39,11 @@ def generate_zone_tips(zone_summaries: list[dict], weather: dict | None = None) 
         weather_block = ""
         if weather and (weather.get("humidity") is not None or weather.get("uv_index") is not None):
             weather_block = f"\n오늘 날씨: 습도 {weather.get('humidity')}%, 자외선지수 {weather.get('uv_index')}\n"
-        prompt = PROMPT_TEMPLATE.replace("{items_json}", json.dumps(zone_summaries, ensure_ascii=False))
-        prompt = prompt.replace("{weather_block}", weather_block)
+        # items_json(사용자 입력이 섞인 자유 문자열 포함)을 먼저 넣으면 그 안의 텍스트가 우연히
+        # "{weather_block}"과 같아질 때 두 번째 replace가 그 부분까지 잘못 건드릴 수 있어서,
+        # 항상 고정 텍스트인 weather_block을 먼저 치환한 뒤 items_json을 마지막에 넣음.
+        prompt = PROMPT_TEMPLATE.replace("{weather_block}", weather_block)
+        prompt = prompt.replace("{items_json}", json.dumps(zone_summaries, ensure_ascii=False))
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],

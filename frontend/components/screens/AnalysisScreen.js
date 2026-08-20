@@ -153,10 +153,7 @@ export default function AnalysisScreen() {
           </div>
         )}
 
-        <div className="disc">
-          본 서비스는 의료적 진단이나 치료를 대신할 수 없으며,<br />
-          질환 의심 시 피부과 전문의와 상담하세요.
-        </div>
+        <div className="disc">{config?.disclaimer}</div>
 
         <div style={{ marginTop: 20, marginBottom: 24 }}>
           <button className="btn primary" style={{ width: '100%' }} onClick={openReportModal}>

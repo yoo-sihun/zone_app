@@ -24,7 +24,7 @@ function fmt(d) {
 }
 
 export default function ReportPanel() {
-  const { today, closeMisc, pushToast } = useApp();
+  const { today, closeMisc, pushToast, config } = useApp();
   const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
   const [start, setStart] = useState(fmt(weekAgo));
   const [end, setEnd] = useState(fmt(today));
@@ -165,10 +165,7 @@ export default function ReportPanel() {
       )}
 
       {zoneStatus && !loading && (
-        <div className="disc">
-          본 서비스는 의료적 진단이나 치료를 대신할 수 없으며,<br />
-          질환 의심 시 피부과 전문의와 상담하세요.
-        </div>
+        <div className="disc">{config?.disclaimer}</div>
       )}
 
       <div className="row" style={{ marginTop: 24 }}>

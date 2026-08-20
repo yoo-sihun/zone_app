@@ -93,7 +93,10 @@ def zone_status(
         status = _status_bucket(count)
 
         zone_suspects = set()
-        zone_ingredients = set()
+        # 상성 체크는 실제로 같이 발린 것만 봐야 함(logs.py의 실시간 체크와 동일 기준) —
+        # 그냥 기간 전체 성분을 다 합쳐서 검사하면 몇 주 전에 쓴 제품과 지금 쓰는 제품이
+        # "같이 쓴 것"으로 잘못 잡혀서 AI 팁이 엉뚱한 조합을 나눠 바르라고 안내하게 됨.
+        same_moment_ingredients: dict[tuple, set] = {}
         for entry in logs:
             if entry.zone not in related:
                 continue
@@ -101,9 +104,14 @@ def zone_status(
             if not product:
                 continue
             zone_suspects.update(ing for ing in product.ingredients if ing in suspect_ings)
-            zone_ingredients.update(product.ingredients)
+            key = (entry.date, entry.time_slot)
+            same_moment_ingredients.setdefault(key, set()).update(product.ingredients)
 
-        collisions = check_interactions(zone_ingredients)
+        collision_pairs = {}
+        for ingredient_set in same_moment_ingredients.values():
+            for c in check_interactions(ingredient_set):
+                collision_pairs[(c["a"], c["b"])] = c
+        collisions = list(collision_pairs.values())
 
         summaries.append({
             "zone": parent,
