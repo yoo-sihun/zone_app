@@ -8,11 +8,12 @@ export default function RecommendScreen() {
   const {
     config, setScreen, setMode,
     selectedProductIds, toggleProductSelection, setSelectedProductIds,
-    pushToast,
+    pushToast, openProductModal,
   } = useApp();
   const [zoneFilter, setZoneFilter] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [catalogItems, setCatalogItems] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +31,24 @@ export default function RecommendScreen() {
     })();
     return () => { cancelled = true; };
   }, [zoneFilter]);
+
+  // 화장대에 없는 외부 카탈로그 추천 — 부위 필터와 무관하게 한 번만 불러옴(의심 성분 배제만 적용됨)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await api("/api/catalog/recommended");
+        if (!cancelled) setCatalogItems(list);
+      } catch (e) {
+        if (!cancelled) setCatalogItems([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  function addCatalogItem(item) {
+    openProductModal({ name: item.name, ingredients: item.ingredients, category: item.category }, null, null);
+  }
 
   if (!config) return null;
   const ZONES = Object.keys(config.sub_zones);
@@ -91,6 +110,35 @@ export default function RecommendScreen() {
             </div>
           )) : <div className="empty">오늘 등록된 제품을 다 바르셨거나, 이 부위에 추천할 제품이 없어요.</div>}
         </div>
+      )}
+
+      {catalogItems.length > 0 && (
+        <>
+          <div className="sechead" style={{ marginTop: 24 }}>
+            <h3>새로 추천하는 제품</h3>
+          </div>
+          <div className="sub" style={{ marginBottom: 12 }}>
+            아직 화장대에 없는 제품이에요. 의심 성분이 든 제품은 자동으로 빠져있어요.
+          </div>
+          <div className="prods">
+            {catalogItems.map((item, i) => (
+              <div key={i} className="prod">
+                <div className="swatch" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {item.category && <span className="record-entry-zone" style={{ flexShrink: 0 }}>{item.category}</span>}
+                    <div className="pname">{item.name}</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 2 }}>{item.brand}</div>
+                  <div className="ping">{item.ingredients.join(" · ")}</div>
+                </div>
+                <button className="btn ghost" style={{ flexShrink: 0, padding: "6px 10px", fontSize: 11 }} onClick={() => addCatalogItem(item)}>
+                  화장대에 등록
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="row utility-buttons" style={{ marginTop: 20 }}>

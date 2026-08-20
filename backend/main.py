@@ -18,6 +18,7 @@ from .routers import external_factors as external_factors_router
 from .routers import reports as reports_router
 from .routers import profiles as profiles_router
 from .routers import history as history_router
+from .routers import catalog as catalog_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
 from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS, SUB_ZONES, SUB_TO_PARENT, MEDICAL_DISCLAIMER
 from .analysis import analyze
@@ -45,6 +46,7 @@ app.include_router(experiments_router.router)
 app.include_router(external_factors_router.router)
 app.include_router(reports_router.router)
 app.include_router(history_router.router)
+app.include_router(catalog_router.router)
 
 
 @app.get("/")
