@@ -105,7 +105,7 @@ export default function RecommendScreen() {
                   {p.category && <span className="record-entry-zone" style={{ flexShrink: 0 }}>{p.category}</span>}
                   <div className="pname">{p.name}{p.locked ? " 🔒" : ""}</div>
                 </div>
-                <div className="ping">{p.ingredients.join(" · ")}</div>
+                <div className="ping">{p.ingredients.slice(0, 4).join(" · ")}</div>
               </div>
             </div>
           )) : <div className="empty">오늘 등록된 제품을 다 바르셨거나, 이 부위에 추천할 제품이 없어요.</div>}
@@ -130,7 +130,7 @@ export default function RecommendScreen() {
                     <div className="pname">{item.name}</div>
                   </div>
                   <div style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 2 }}>{item.brand}</div>
-                  <div className="ping">{item.ingredients.join(" · ")}</div>
+                  <div className="ping">{item.ingredients.slice(0, 4).join(" · ")}</div>
                 </div>
                 <button className="btn ghost" style={{ flexShrink: 0, padding: "6px 10px", fontSize: 11 }} onClick={() => addCatalogItem(item)}>
                   화장대에 등록
