@@ -93,12 +93,12 @@ export default function ReportPanel() {
       {zoneStatus && !loading && (
         <>
           <div className="card" style={{ padding: 14, background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <h4 style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 800 }}>부위별 진단 요약</h4>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 800 }}>부위별 기록 요약</h4>
             <table className="report-zone-table">
               <thead>
                 <tr>
                   <th>부위</th>
-                  <th>진단</th>
+                  <th>상태</th>
                   <th style={{ textAlign: 'right' }}>기록 건수</th>
                 </tr>
               </thead>
@@ -162,6 +162,13 @@ export default function ReportPanel() {
             })}
           </div>
         </>
+      )}
+
+      {zoneStatus && !loading && (
+        <div className="disc">
+          본 서비스는 의료적 진단이나 치료를 대신할 수 없으며,<br />
+          질환 의심 시 피부과 전문의와 상담하세요.
+        </div>
       )}
 
       <div className="row" style={{ marginTop: 24 }}>

@@ -35,6 +35,10 @@ export default function ExpResultPanel({ experimentId }) {
       <div className="ask">
         <p>{r.improved ? "트러블이 줄었어요. 이 성분이 원인일 가능성이 있습니다." : "큰 변화가 없어요. 다른 요인도 함께 살펴보는 게 좋겠어요."}</p>
       </div>
+      <div className="disc">
+        본 서비스는 의료적 진단이나 치료를 대신할 수 없으며,<br />
+        질환 의심 시 피부과 전문의와 상담하세요.
+      </div>
       <div className="row"><button className="btn ghost" onClick={closeMisc}>닫기</button></div>
     </>
   );

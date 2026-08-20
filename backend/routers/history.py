@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_profile_id
-from ..models import DailyLog, TroubleDot, SuspectIngredient, Product, ZONES, ZONE_LABELS, SUB_ZONES
+from ..models import DailyLog, TroubleDot, SuspectIngredient, Product, ExternalFactor, ZONES, ZONE_LABELS, SUB_ZONES
 from ..schemas import HistorySummary
+from ..interactions import check_interactions
 
 from ai.zone_tips import generate_zone_tips
 
@@ -92,6 +93,7 @@ def zone_status(
         status = _status_bucket(count)
 
         zone_suspects = set()
+        zone_ingredients = set()
         for entry in logs:
             if entry.zone not in related:
                 continue
@@ -99,6 +101,9 @@ def zone_status(
             if not product:
                 continue
             zone_suspects.update(ing for ing in product.ingredients if ing in suspect_ings)
+            zone_ingredients.update(product.ingredients)
+
+        collisions = check_interactions(zone_ingredients)
 
         summaries.append({
             "zone": parent,
@@ -106,9 +111,19 @@ def zone_status(
             "status": status,
             "count": count,
             "suspects": sorted(zone_suspects),
+            "collisions": [{"a": c["a"], "b": c["b"], "description": c["description"]} for c in collisions],
         })
 
-    ai_tips = generate_zone_tips(summaries)
+    today_factors = (
+        db.query(ExternalFactor)
+        .filter(ExternalFactor.profile_id == profile_id, ExternalFactor.date == Date.today())
+        .first()
+    )
+    weather = None
+    if today_factors and (today_factors.humidity is not None or today_factors.uv_index is not None):
+        weather = {"humidity": today_factors.humidity, "uv_index": today_factors.uv_index}
+
+    ai_tips = generate_zone_tips(summaries, weather)
     for s in summaries:
         s["tip"] = ai_tips.get(s["zone"]) or _FALLBACK_TIPS[s["status"]]
         s["ai_tip"] = s["zone"] in ai_tips

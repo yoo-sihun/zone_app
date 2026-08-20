@@ -131,7 +131,7 @@ def generate_report_pdf(db: Session, profile_id: int, start: Date, end: Date) ->
 
     story.append(
         Paragraph(
-            "이 리포트는 의료적 진단이 아니며 참고용입니다. 증상이 지속되면 피부과 전문의와 상담하세요.",
+            "본 서비스는 의료적 진단이나 치료를 대신할 수 없으며, 질환 의심 시 피부과 전문의와 상담하세요.",
             disc_style,
         )
     )

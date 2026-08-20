@@ -63,7 +63,10 @@ def recommended_products(
 ):
     """화장대에 등록된 제품 기반 추천 — 별도 추천 엔진/외부 카탈로그 없이 본인 제품만.
     zone 없으면: 오늘 아직 하나도 안 바른 제품(기존 홈 화면용 동작, 그대로 유지).
-    zone 있으면: 그 부위엔 아직 안 바른 제품 중, 의심 성분 든 것과 잠긴(실험 중) 것은 제외."""
+    zone 있으면: 추가로 그 부위 도포 기록만 대상으로 필터링.
+    의심 성분이 든 제품과 잠긴(실험 중) 제품은 zone 유무와 무관하게 항상 추천에서 제외함
+    (의심 성분 0% 제품만 추천 — 화장품법상 부당 효능 표시 오인을 피하려면 애초에
+    의심되는 제품을 추천 후보에조차 올리지 않는 게 안전함)."""
     today = Date.today()
     log_query = db.query(DailyLog.product_id).filter(DailyLog.profile_id == profile_id, DailyLog.date == today)
     if zone:
@@ -73,19 +76,17 @@ def recommended_products(
     applied_ids = {r[0] for r in log_query.all()}
 
     locked_ing = locked_ingredient(db, profile_id, today)
+    suspects = {
+        s.ingredient
+        for s in db.query(SuspectIngredient).filter(SuspectIngredient.profile_id == profile_id).all()
+    }
     products = db.query(Product).filter(Product.profile_id == profile_id).all()
-    remaining = [p for p in products if p.id not in applied_ids]
-
-    if zone:
-        suspects = {
-            s.ingredient
-            for s in db.query(SuspectIngredient).filter(SuspectIngredient.profile_id == profile_id).all()
-        }
-        remaining = [
-            p for p in remaining
-            if not any(ing in suspects for ing in p.ingredients)
-            and not (locked_ing and locked_ing in p.ingredients)
-        ]
+    remaining = [
+        p for p in products
+        if p.id not in applied_ids
+        and not any(ing in suspects for ing in p.ingredients)
+        and not (locked_ing and locked_ing in p.ingredients)
+    ]
 
     return [
         {
