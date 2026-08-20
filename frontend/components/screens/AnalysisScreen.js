@@ -157,10 +157,15 @@ export default function AnalysisScreen() {
       )}
 
       <div className="analysis-hero" style={{ padding: "20px 16px 16px" }}>
-        <span className="chip on" style={{ display: "inline-block", marginBottom: 10 }}>✨ AI 원인 분석</span>
-        <h2 style={{ marginBottom: 4, fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>내 피부 트러블의<br />진짜 원인은 무엇일까?</h2>
-        <div className="sub" style={{ marginBottom: 16 }}>정밀 원인 분석을 실행해보세요</div>
-        
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span className="chip on" style={{ display: "inline-block", marginBottom: 10 }}>✨ AI 원인 분석</span>
+            <h2 style={{ marginBottom: 4, fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>내 피부 트러블의<br />진짜 원인은 무엇일까?</h2>
+            <div className="sub" style={{ marginBottom: 16 }}>정밀 원인 분석을 실행해보세요</div>
+          </div>
+          <img src="/mascot1.png" alt="" style={{ width: 64, height: 64, flexShrink: 0, marginTop: 2 }} />
+        </div>
+
         <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
           <button 
             className="btn primary" 

@@ -55,7 +55,10 @@ export default function HomeScreen() {
 
       {!bellLogged && (
         <div className="today-cta-card" onClick={() => setScreen("record")}>
-          <span>📝 오늘 아직 스킨케어 기록이 없어요</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <img src="/mascot2.png" alt="" style={{ width: 28, height: 28 }} />
+            오늘 아직 스킨케어 기록이 없어요
+          </span>
           <span className="linkbtn">기록하러 가기</span>
         </div>
       )}
