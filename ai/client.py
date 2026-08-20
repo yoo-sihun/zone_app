@@ -4,16 +4,26 @@ from openai import OpenAI
 
 _client: OpenAI | None = None
 
+# AI_ENABLED 환경변수(render.yaml)가 배포 시점의 기본값을 정하고, MY 화면의 즉시 토글
+# (backend/routers/settings.py)이 이 인메모리 값을 재배포 없이 바로 덮어씀. 서버가 재시작
+# 되면(콜드스타트 등) main.py가 DB(app_settings)에 저장된 마지막 토글 값으로 다시 덮어써서
+# 스위치로 꺼둔 상태가 재시작 후에도 유지되게 함 — DB에 값이 아예 없을 때만 이 환경변수
+# 기본값이 그대로 씀.
+_enabled = os.environ.get("AI_ENABLED", "true").strip().lower() != "false"
 
-def _ai_enabled() -> bool:
-    """render.yaml(또는 로컬 .env)의 AI_ENABLED로 켜고 끔 — 값을 바꾸면 재배포/재시작해야
-    반영됨(true 이외의 값은 전부 꺼짐으로 취급, 기본값은 켜짐)."""
-    return os.environ.get("AI_ENABLED", "true").strip().lower() != "false"
+
+def is_ai_enabled() -> bool:
+    return _enabled
+
+
+def set_ai_enabled(value: bool) -> None:
+    global _enabled
+    _enabled = value
 
 
 def get_client() -> OpenAI:
-    if not _ai_enabled():
-        raise RuntimeError("AI 기능이 꺼져있습니다 (AI_ENABLED=false)")
+    if not _enabled:
+        raise RuntimeError("AI 기능이 꺼져있습니다")
     global _client
     if _client is None:
         api_key = os.environ.get("OPENAI_API_KEY")

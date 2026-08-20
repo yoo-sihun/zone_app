@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, JSON, Float, UniqueConstraint, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, JSON, Float, Boolean, UniqueConstraint, func
 
 from .database import Base
 
@@ -162,3 +162,12 @@ class ExternalFactor(Base):
     skin_condition = Column(String, nullable=True)  # 사용자 자가진단, 예: "건성"/"보통"/"유분성"
 
     __table_args__ = (UniqueConstraint("profile_id", "date", name="uq_external_factor_profile_date"),)
+
+
+class AppSetting(Base):
+    """프로필과 무관한 앱 전역 설정 — 지금은 AI 기능 on/off 하나뿐이라 싱글턴(항상 1행)으로 씀.
+    MY 화면의 즉시 토글 값을 저장해서 서버 재시작 후에도 유지되게 함(ai/client.py 참고)."""
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True)
+    ai_enabled = Column(Boolean, nullable=False, default=True)

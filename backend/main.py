@@ -8,7 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .database import Base, engine, get_db
+from .database import Base, engine, get_db, SessionLocal
 from .deps import get_current_profile_id
 from .routers import products as products_router
 from .routers import logs as logs_router
@@ -19,13 +19,22 @@ from .routers import reports as reports_router
 from .routers import profiles as profiles_router
 from .routers import history as history_router
 from .routers import catalog as catalog_router
+from .routers import settings as settings_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
-from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS, SUB_ZONES, SUB_TO_PARENT, MEDICAL_DISCLAIMER
+from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS, SUB_ZONES, SUB_TO_PARENT, MEDICAL_DISCLAIMER, AppSetting
 from .analysis import analyze
 from .experiments import EXPERIMENT_DAYS, EXPERIMENT_DAY_OPTIONS
 from ai.rank_suspects import rank_suspects
+from ai.client import set_ai_enabled
 
 Base.metadata.create_all(bind=engine)
+
+# 서버 시작 시 DB에 저장된 AI on/off 값(MY 화면 토글로 마지막에 설정한 값)을 인메모리에
+# 반영 — 없으면(한 번도 토글 안 써봤으면) AI_ENABLED 환경변수 기본값 그대로 둠(ai/client.py)
+with SessionLocal() as _startup_db:
+    _setting = _startup_db.query(AppSetting).first()
+    if _setting:
+        set_ai_enabled(_setting.ai_enabled)
 
 # 배포 환경에서 API 스키마/DELETE 등 전체 엔드포인트 목록이 그대로 노출되는 걸 막으려고
 # Swagger(/docs)·ReDoc·openapi.json은 기본 꺼둠. 로컬 디버깅용으로만 SHOW_DOCS=true로 켬.
@@ -55,6 +64,7 @@ app.include_router(external_factors_router.router)
 app.include_router(reports_router.router)
 app.include_router(history_router.router)
 app.include_router(catalog_router.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/")
