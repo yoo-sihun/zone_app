@@ -32,6 +32,11 @@ export default function HomeScreen() {
   }
 
   function pickRecommendation(id) {
+    const product = products.find((p) => p.id === id);
+    if (product?.locked) {
+      pushToast("실험 진행 중이라 잠긴 제품이에요", "warn");
+      return;
+    }
     setSelectedProductIds([id]);
     setScreen("record");
     setMode("apply");

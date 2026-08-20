@@ -297,11 +297,17 @@ export function AppProvider({ children }) {
   // ── 얼굴 탭 액션 (제품 도포는 바로 저장하지 않고 대기열에 쌓았다가 "기록 저장"으로 한 번에 커밋) ──
   const stageApply = useCallback((zone) => {
     if (!selectedProductIds.length) { flash("먼저 제품을 고르세요"); return; }
+    // selectedProductIds에 잠긴(실험 중) 제품이 섞여 들어올 수 있음(예: 홈 화면 "최근 사용 제품"에서
+    // 잠금 체크 없이 미리 선택된 채로 들어오는 경로) — 저장 시점에 서버가 어차피 막긴 하지만,
+    // 대기열에 쌓이는 시점에 걸러야 "잠겨 있는데 도포 가능해 보이는" 상태가 안 생김.
+    const lockedIds = new Set(products.filter((p) => p.locked).map((p) => p.id));
+    const applicableIds = selectedProductIds.filter((id) => !lockedIds.has(id));
+    if (!applicableIds.length) { flash("실험 진행 중이라 잠긴 제품이에요"); return; }
     const dateStr = fmt(currentDate);
     const savedIds = (dayData.log[zone] && dayData.log[zone][slot]) || [];
     setPendingApplications((prev) => {
       let next = [...prev];
-      for (const productId of selectedProductIds) {
+      for (const productId of applicableIds) {
         const idx = next.findIndex((e) => e.zone === zone && e.productId === productId && e.date === dateStr && e.slot === slot);
         if (idx !== -1) {
           next.splice(idx, 1); // 같은 걸 다시 탭하면 대기 취소
@@ -311,7 +317,8 @@ export function AppProvider({ children }) {
       }
       return next;
     });
-  }, [selectedProductIds, currentDate, slot, dayData, flash]);
+    if (applicableIds.length < selectedProductIds.length) flash("잠긴 제품은 제외하고 기록했어요");
+  }, [selectedProductIds, currentDate, slot, dayData, flash, products]);
 
   const cancelPendingApplication = useCallback((zone, productId, date, entrySlot) => {
     setPendingApplications((prev) => prev.filter((e) => !(e.zone === zone && e.productId === productId && e.date === date && e.slot === entrySlot)));
