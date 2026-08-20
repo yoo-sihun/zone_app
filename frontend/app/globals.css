@@ -911,14 +911,12 @@ body {
   fill: var(--teal-dark);
 }
 
-/* Trouble Dots with Pulsing Animation */
+/* Trouble Dots - Static */
 .dot {
   stroke: #FFFFFF;
   stroke-width: 2;
   cursor: pointer;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
-  animation: pulseDot 1.8s infinite ease-in-out;
-  transform-origin: center;
 }
 
 @keyframes pulseDot {
