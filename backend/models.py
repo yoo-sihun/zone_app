@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, JSON, Float, UniqueConstraint, func
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, JSON, Float, Boolean, UniqueConstraint, func
 
 from .database import Base
 
@@ -161,3 +161,12 @@ class ExternalFactor(Base):
     skin_condition = Column(String, nullable=True)  # 사용자 자가진단, 예: "건성"/"보통"/"유분성"
 
     __table_args__ = (UniqueConstraint("profile_id", "date", name="uq_external_factor_profile_date"),)
+
+
+class AppSetting(Base):
+    """프로필과 무관한 앱 전역 설정 — 지금은 AI 기능 on/off 하나뿐이라 싱글턴(항상 1행)으로 씀.
+    OpenAI 비용이 걱정될 때 Render 재배포 없이 즉시 껐다 켤 수 있게 하려고 추가함(ai/toggle.py)."""
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True)
+    ai_enabled = Column(Boolean, nullable=False, default=True)

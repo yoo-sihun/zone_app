@@ -2,10 +2,14 @@ import os
 
 from openai import OpenAI
 
+from .toggle import is_enabled
+
 _client: OpenAI | None = None
 
 
 def get_client() -> OpenAI:
+    if not is_enabled():
+        raise RuntimeError("AI 기능이 꺼져있습니다")
     global _client
     if _client is None:
         api_key = os.environ.get("OPENAI_API_KEY")

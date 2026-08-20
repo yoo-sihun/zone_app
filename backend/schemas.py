@@ -148,6 +148,10 @@ class HistorySummary(BaseModel):
     dots: list[HistoryDot]
 
 
+class AISettingIn(BaseModel):
+    ai_enabled: bool
+
+
 class ExternalFactorOut(BaseModel):
     date: Date
     sleep_hours: float | None
