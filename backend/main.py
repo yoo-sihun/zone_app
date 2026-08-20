@@ -27,7 +27,15 @@ from ai.rank_suspects import rank_suspects
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="ZONE")
+# 배포 환경에서 API 스키마/DELETE 등 전체 엔드포인트 목록이 그대로 노출되는 걸 막으려고
+# Swagger(/docs)·ReDoc·openapi.json은 기본 꺼둠. 로컬 디버깅용으로만 SHOW_DOCS=true로 켬.
+SHOW_DOCS = os.environ.get("SHOW_DOCS", "false").strip().lower() == "true"
+app = FastAPI(
+    title="ZONE",
+    docs_url="/docs" if SHOW_DOCS else None,
+    redoc_url="/redoc" if SHOW_DOCS else None,
+    openapi_url="/openapi.json" if SHOW_DOCS else None,
+)
 
 # 프론트(frontend/, Vercel에 별도 배포)가 다른 오리진에서 이 API를 호출하므로 CORS 필요
 CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]

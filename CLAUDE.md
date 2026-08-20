@@ -113,7 +113,7 @@ external_factors         -- 프로필+날짜당 1행, 수동 입력 + 미세먼�
 ```
 GET    /api/profiles             → [{id, name}]  -- 헤더 불필요, 프로필 선택 전에 호출함
 POST   /api/profiles             {name} → {id, name}  -- 헤더 불필요
-DELETE /api/profiles/{id}        -- 헤더 불필요. 연쇄 삭제(products/daily_logs/trouble_dots/suspect_ingredients/experiments/external_factors 전부 같이 지움), 되돌리기 불가
+DELETE /api/profiles/{id}        -- X-Profile-Id 헤더가 {id}와 일치해야 함(본인 프로필만 삭제 가능, 아니면 403). 연쇄 삭제(products/daily_logs/trouble_dots/suspect_ingredients/experiments/external_factors 전부 같이 지움), 되돌리기 불가
 
 GET    /api/products             → [{id, name, ingredients, locked, last_used}]  -- locked는 진행 중인 실험 대상 성분 포함 시 true. **최근 사용한 순서로 정렬됨**(제품별 `daily_logs` 최대 날짜 기준, 한 번도 안 쓴 제품은 맨 뒤) — `last_used`는 그 날짜(없으면 null)
 GET    /api/products/recommended → [{id, name, ingredients, locked}]  -- 오늘 아직 안 바른 제품 중 최대 6개(별도 추천 엔진 아님, 자기 화장대 기반). 의심 성분 든 것 + 잠긴(실험 중) 것은 zone 유무와 무관하게 항상 제외(성분 배제 원칙) — ?zone= 넘기면 그 부위 기준(그 부위엔 아직 안 바른 제품)으로 추가 필터링, 없으면 전체 부위 기준

@@ -13,6 +13,8 @@ services:
         sync: false
       - key: AI_ENABLED
         value: "true"
+      - key: SHOW_DOCS
+        value: "false"
       - key: DATABASE_URL
         sync: false
       - key: AIRKOREA_API_KEY
