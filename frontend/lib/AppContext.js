@@ -489,26 +489,6 @@ export function AppProvider({ children }) {
     setMiscModal({ open: true, kind: "report" });
   }, []);
 
-  // AI 기능 전역 on/off — Render 재배포 없이 OpenAI 비용을 즉시 멈출 수 있게(§ MY 화면)
-  const [aiEnabled, setAiEnabledState] = useState(true);
-  const loadAiSetting = useCallback(async () => {
-    try {
-      const r = await api("/api/settings/ai");
-      setAiEnabledState(r.ai_enabled);
-    } catch (e) {
-      // 조회 실패해도 화면이 죽지 않게 — 스위치는 마지막으로 안 값 그대로 둠
-    }
-  }, []);
-  const setAiEnabled = useCallback(async (value) => {
-    try {
-      const r = await api("/api/settings/ai", { method: "PATCH", body: JSON.stringify({ ai_enabled: value }) });
-      setAiEnabledState(r.ai_enabled);
-      pushToast(r.ai_enabled ? "AI 기능을 켰어요" : "AI 기능을 껐어요", "ok");
-    } catch (err) {
-      alert(err.message);
-    }
-  }, [pushToast]);
-
   const openExpResultModal = useCallback((experimentId) => {
     setMiscModal({ open: true, kind: "expResult", experimentId: experimentId || activeExperiment?.id });
   }, [activeExperiment]);
@@ -584,7 +564,6 @@ export function AppProvider({ children }) {
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,
     startExperiment, stopExperiment, openExpResultModal, openStartExperimentModal,
     miscModal, closeMisc, openSuspectsModal, openFactorsModal, openReportModal,
-    aiEnabled, loadAiSetting, setAiEnabled,
     loadSuspects,
     hint, flash, setHint,
     toasts, pushToast,

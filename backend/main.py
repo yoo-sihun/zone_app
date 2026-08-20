@@ -8,7 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .database import Base, engine, get_db, SessionLocal
+from .database import Base, engine, get_db
 from .deps import get_current_profile_id
 from .routers import products as products_router
 from .routers import logs as logs_router
@@ -19,22 +19,13 @@ from .routers import reports as reports_router
 from .routers import profiles as profiles_router
 from .routers import history as history_router
 from .routers import catalog as catalog_router
-from .routers import settings as settings_router
 from . import models  # noqa: F401  (모델 등록을 위해 import)
-from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS, SUB_ZONES, SUB_TO_PARENT, MEDICAL_DISCLAIMER, AppSetting
+from .models import ZONES, ZONE_LABELS, TROUBLE_TYPES, TROUBLE_TYPE_LABELS, SUB_ZONES, SUB_TO_PARENT, MEDICAL_DISCLAIMER
 from .analysis import analyze
 from .experiments import EXPERIMENT_DAYS, EXPERIMENT_DAY_OPTIONS
 from ai.rank_suspects import rank_suspects
-from ai.toggle import set_enabled
 
 Base.metadata.create_all(bind=engine)
-
-# 서버 시작 시 DB에 저장된 AI on/off 값을 인메모리 플래그에 반영(ai/toggle.py) —
-# 안 하면 재시작/콜드스타트 때마다 기본값(켜짐)으로 되돌아가서 껐던 게 무시됨
-with SessionLocal() as _startup_db:
-    _setting = _startup_db.query(AppSetting).first()
-    if _setting:
-        set_enabled(_setting.ai_enabled)
 
 app = FastAPI(title="ZONE")
 
@@ -56,7 +47,6 @@ app.include_router(external_factors_router.router)
 app.include_router(reports_router.router)
 app.include_router(history_router.router)
 app.include_router(catalog_router.router)
-app.include_router(settings_router.router)
 
 
 @app.get("/")

@@ -11,6 +11,8 @@ services:
         value: 3.12.7
       - key: OPENAI_API_KEY
         sync: false
+      - key: AI_ENABLED
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: AIRKOREA_API_KEY
