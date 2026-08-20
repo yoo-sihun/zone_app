@@ -12,7 +12,7 @@ const STEPS = [
 ];
 
 export default function AnalysisScreen() {
-  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, setExperimentStartDate, config, setScreen } = useApp();
+  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, config, setScreen } = useApp();
   const [expResult, setExpResult] = useState(null);
   const [trackInfo, setTrackInfo] = useState(null);
 
@@ -79,24 +79,6 @@ export default function AnalysisScreen() {
           <p style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center", margin: "10px 0 0" }}>
             매일 자정이 지나면 자동으로 다음 날로 넘어가요 — 따로 누를 건 없어요
           </p>
-        </div>
-
-        {/* Test-only date control — 시연/발표 중 실제로 며칠 기다리지 않고 진행 상황을 바로 보여주기 위한 것 */}
-        <div className="empty-shelf-card" style={{ flexDirection: "row", gap: 14, padding: "12px 16px", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 20 }}>🧪</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, marginBottom: 4 }}>테스트용 — 시작일 직접 조정</div>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 6 }}>
-              발표·테스트 중에 실제로 며칠 기다리지 않고 진행 상황을 바로 확인할 때만 쓰세요.
-            </div>
-            <input
-              type="date"
-              value={activeExperiment.start_date}
-              max={new Date().toLocaleDateString("en-CA")}
-              onChange={(e) => e.target.value && setExperimentStartDate(e.target.value)}
-              style={{ fontSize: 12, padding: "4px 6px", borderRadius: 6, border: "1px solid var(--border)" }}
-            />
-          </div>
         </div>
 
         {/* Guide Card */}

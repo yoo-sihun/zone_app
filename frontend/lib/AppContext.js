@@ -474,22 +474,6 @@ export function AppProvider({ children }) {
     await loadProducts();
   }, [activeExperiment, loadActiveExperiment, loadProducts]);
 
-  // 시연/데모용 — 실제로 며칠 기다리지 않고 실험 시작일을 직접 조정(과거로 당기면 더 진행됨,
-  // 오늘 쪽으로 미루면 덜 진행됨). 앞/뒤 양방향 다 가능하도록 날짜 하나로 통일함.
-  const setExperimentStartDate = useCallback(async (newDate) => {
-    try {
-      await api(`/api/experiments/${activeExperiment.id}/start-date`, {
-        method: "PATCH",
-        body: JSON.stringify({ start_date: newDate }),
-      });
-      await loadActiveExperiment();
-      await loadProducts(); // 날짜를 옮기면 잠금 상태가 바로 바뀔 수 있어서(창을 벗어나면 즉시 해제) 같이 새로고침
-      pushToast("실험 진행일을 조정했어요", "ok");
-    } catch (err) {
-      alert(err.message);
-    }
-  }, [activeExperiment, loadActiveExperiment, loadProducts, pushToast]);
-
   const closeMisc = useCallback(() => setMiscModal({ open: false, kind: null }), []);
 
   const openSuspectsModal = useCallback(async () => {
@@ -578,7 +562,7 @@ export function AppProvider({ children }) {
     productModal, openProductModal, closeProductModal, saveProduct, deleteProduct,
     copyPrevious, clearDay,
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,
-    startExperiment, stopExperiment, setExperimentStartDate, openExpResultModal, openStartExperimentModal,
+    startExperiment, stopExperiment, openExpResultModal, openStartExperimentModal,
     miscModal, closeMisc, openSuspectsModal, openFactorsModal, openReportModal,
     loadSuspects,
     hint, flash, setHint,

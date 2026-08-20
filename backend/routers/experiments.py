@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import get_current_profile_id
 from ..models import Experiment
-from ..schemas import ExperimentIn, ExperimentOut, ExperimentResult, ExperimentStartDateIn
+from ..schemas import ExperimentIn, ExperimentOut, ExperimentResult
 from ..experiments import (
     get_active_experiment,
     day_count,
@@ -86,34 +86,6 @@ def get_result(
         exp.status = "completed"
         db.commit()
     return {**_to_out(exp), **result}
-
-
-@router.patch("/{experiment_id}/start-date", response_model=ExperimentOut)
-def set_start_date(
-    experiment_id: int,
-    data: ExperimentStartDateIn,
-    profile_id: int = Depends(get_current_profile_id),
-    db: Session = Depends(get_db),
-):
-    """데모/시연용 — 실제로 며칠이 지나가길 기다리지 않고 실험 시작일을 직접 조정해서
-    day_count를 원하는 만큼 앞으로/뒤로 옮김. start_date를 당기면(과거로) 더 진행된 것처럼,
-    미루면(오늘 쪽으로) 덜 진행된 것처럼 보임 — day_count/is_window_complete가 이 필드
-    하나로 계산되는 걸 그대로 이용하는 것뿐이라 다른 로직(analyze의 LAG_DAYS 등)엔 영향 없음."""
-    exp = (
-        db.query(Experiment)
-        .filter(Experiment.id == experiment_id, Experiment.profile_id == profile_id)
-        .first()
-    )
-    if not exp:
-        raise HTTPException(status_code=404, detail="실험을 찾을 수 없습니다")
-    if exp.status != "active":
-        raise HTTPException(status_code=400, detail="진행 중인 실험만 조정할 수 있습니다")
-    if data.start_date > Date.today():
-        raise HTTPException(status_code=400, detail="시작일을 미래로 설정할 수 없습니다")
-    exp.start_date = data.start_date
-    db.commit()
-    db.refresh(exp)
-    return _to_out(exp)
 
 
 @router.patch("/{experiment_id}")

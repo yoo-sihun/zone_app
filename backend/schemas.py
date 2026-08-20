@@ -103,10 +103,6 @@ class ExperimentIn(BaseModel):
     duration_days: int = 3  # 3 또는 7만 허용 — 라우터에서 검증
 
 
-class ExperimentStartDateIn(BaseModel):
-    start_date: Date
-
-
 class ExperimentOut(BaseModel):
     id: int
     ingredient: str
