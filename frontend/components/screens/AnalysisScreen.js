@@ -12,7 +12,7 @@ const STEPS = [
 ];
 
 export default function AnalysisScreen() {
-  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, config, setScreen } = useApp();
+  const { activeExperiment, stopExperiment, openAnalysisModal, openReportModal, openStartExperimentModal, setExperimentStartDate, config, setScreen } = useApp();
   const [expResult, setExpResult] = useState(null);
   const [trackInfo, setTrackInfo] = useState(null);
 
@@ -75,6 +75,27 @@ export default function AnalysisScreen() {
                 </div>
               );
             })}
+          </div>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center", margin: "10px 0 0" }}>
+            매일 자정이 지나면 자동으로 다음 날로 넘어가요 — 따로 누를 건 없어요
+          </p>
+        </div>
+
+        {/* Test-only date control — 시연/발표 중 실제로 며칠 기다리지 않고 진행 상황을 바로 보여주기 위한 것 */}
+        <div className="empty-shelf-card" style={{ flexDirection: "row", gap: 14, padding: "12px 16px", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 20 }}>🧪</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, marginBottom: 4 }}>테스트용 — 시작일 직접 조정</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 6 }}>
+              발표·테스트 중에 실제로 며칠 기다리지 않고 진행 상황을 바로 확인할 때만 쓰세요.
+            </div>
+            <input
+              type="date"
+              value={activeExperiment.start_date}
+              max={new Date().toLocaleDateString("en-CA")}
+              onChange={(e) => e.target.value && setExperimentStartDate(e.target.value)}
+              style={{ fontSize: 12, padding: "4px 6px", borderRadius: 6, border: "1px solid var(--border)" }}
+            />
           </div>
         </div>
 
@@ -151,21 +172,31 @@ export default function AnalysisScreen() {
         </div>
       )}
 
-      <div className="analysis-hero">
+      <div className="analysis-hero" style={{ padding: "20px 16px 16px" }}>
         <span className="chip on" style={{ display: "inline-block", marginBottom: 10 }}>✨ AI 원인 분석</span>
         <h2 style={{ marginBottom: 4, fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>내 피부 트러블의<br />진짜 원인은 무엇일까?</h2>
         <div className="sub" style={{ marginBottom: 16 }}>정밀 원인 분석을 실행해보세요</div>
-        <button className="btn primary main-action" onClick={() => openAnalysisModal(null)}>🔍 원인 분석 시작하기 &gt;</button>
-      </div>
+        
+        <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+          <button 
+            className="btn primary" 
+            style={{ flex: 1, padding: "12px 6px", fontSize: "11px", fontWeight: "800" }} 
+            onClick={() => openAnalysisModal(null)}
+          >
+            🔍 원인 분석 시작
+          </button>
+          <button 
+            className="btn ghost" 
+            style={{ flex: 1, padding: "12px 6px", fontSize: "11px", fontWeight: "800", background: "#FFFFFF", borderColor: "var(--teal)", color: "var(--teal)" }} 
+            onClick={openStartExperimentModal}
+          >
+            🧪 실험 바로 시작
+          </button>
+        </div>
 
-      <div className="today-cta-card" onClick={openStartExperimentModal}>
-        <span>🧪 이미 의심되는 성분이 있나요?</span>
-        <span className="linkbtn">실험 바로 시작하기</span>
-      </div>
-
-      <div className="analysis-note">
-        <b>분석이 어려운 경우</b>
-        <div className="sub" style={{ marginTop: 4 }}>기록된 데이터가 부족하면 분석할 수 없다고 안내해드려요.</div>
+        <div style={{ marginTop: "16px", fontSize: "10.5px", color: "var(--text-muted)", textAlign: "center", lineHeight: "1.4" }}>
+          ℹ️ 기록된 피부 데이터가 부족하면 정확한 원인 분석이 일시적으로 제한될 수 있습니다.
+        </div>
       </div>
 
       <div className="sechead" style={{ marginTop: 24 }}>

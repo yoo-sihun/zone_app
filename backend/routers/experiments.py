@@ -1,4 +1,4 @@
-from datetime import date as Date, timedelta
+from datetime import date as Date
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import get_current_profile_id
 from ..models import Experiment
-from ..schemas import ExperimentIn, ExperimentOut, ExperimentResult
+from ..schemas import ExperimentIn, ExperimentOut, ExperimentResult, ExperimentStartDateIn
 from ..experiments import (
     get_active_experiment,
     day_count,
@@ -88,14 +88,17 @@ def get_result(
     return {**_to_out(exp), **result}
 
 
-@router.post("/{experiment_id}/advance-day", response_model=ExperimentOut)
-def advance_day(
-    experiment_id: int, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
+@router.patch("/{experiment_id}/start-date", response_model=ExperimentOut)
+def set_start_date(
+    experiment_id: int,
+    data: ExperimentStartDateIn,
+    profile_id: int = Depends(get_current_profile_id),
+    db: Session = Depends(get_db),
 ):
-    """데모/시연용 — 실제로 하루가 지나가길 기다리지 않고 start_date를 하루 앞당겨서
-    day_count를 즉시 한 칸 전진시킴. 실험 진행 상황이 서버의 실제 오늘 날짜 기준으로만
-    계산되는 것과는 별개로, 이 엔드포인트는 그 기준 날짜(start_date)를 당기는 것뿐이라
-    다른 로직(analyze의 LAG_DAYS 등)에는 영향 없음."""
+    """데모/시연용 — 실제로 며칠이 지나가길 기다리지 않고 실험 시작일을 직접 조정해서
+    day_count를 원하는 만큼 앞으로/뒤로 옮김. start_date를 당기면(과거로) 더 진행된 것처럼,
+    미루면(오늘 쪽으로) 덜 진행된 것처럼 보임 — day_count/is_window_complete가 이 필드
+    하나로 계산되는 걸 그대로 이용하는 것뿐이라 다른 로직(analyze의 LAG_DAYS 등)엔 영향 없음."""
     exp = (
         db.query(Experiment)
         .filter(Experiment.id == experiment_id, Experiment.profile_id == profile_id)
@@ -104,8 +107,10 @@ def advance_day(
     if not exp:
         raise HTTPException(status_code=404, detail="실험을 찾을 수 없습니다")
     if exp.status != "active":
-        raise HTTPException(status_code=400, detail="진행 중인 실험만 앞당길 수 있습니다")
-    exp.start_date -= timedelta(days=1)
+        raise HTTPException(status_code=400, detail="진행 중인 실험만 조정할 수 있습니다")
+    if data.start_date > Date.today():
+        raise HTTPException(status_code=400, detail="시작일을 미래로 설정할 수 없습니다")
+    exp.start_date = data.start_date
     db.commit()
     db.refresh(exp)
     return _to_out(exp)

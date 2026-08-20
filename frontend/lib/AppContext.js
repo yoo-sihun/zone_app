@@ -466,12 +466,16 @@ export function AppProvider({ children }) {
     await loadProducts();
   }, [activeExperiment, loadActiveExperiment, loadProducts]);
 
-  // 시연/데모용 — 실제로 하루 기다리지 않고 진행 중인 실험을 하루 앞당김
-  const advanceExperimentDay = useCallback(async () => {
+  // 시연/데모용 — 실제로 며칠 기다리지 않고 실험 시작일을 직접 조정(과거로 당기면 더 진행됨,
+  // 오늘 쪽으로 미루면 덜 진행됨). 앞/뒤 양방향 다 가능하도록 날짜 하나로 통일함.
+  const setExperimentStartDate = useCallback(async (newDate) => {
     try {
-      await api(`/api/experiments/${activeExperiment.id}/advance-day`, { method: "POST" });
+      await api(`/api/experiments/${activeExperiment.id}/start-date`, {
+        method: "PATCH",
+        body: JSON.stringify({ start_date: newDate }),
+      });
       await loadActiveExperiment();
-      pushToast("실험을 하루 앞당겼어요", "ok");
+      pushToast("실험 진행일을 조정했어요", "ok");
     } catch (err) {
       alert(err.message);
     }
@@ -565,7 +569,7 @@ export function AppProvider({ children }) {
     productModal, openProductModal, closeProductModal, saveProduct, deleteProduct,
     copyPrevious, clearDay,
     analysisModal, openAnalysisModal, closeAnalysisModal, saveSuspectFromAnalysis,
-    startExperiment, stopExperiment, advanceExperimentDay, openExpResultModal, openStartExperimentModal,
+    startExperiment, stopExperiment, setExperimentStartDate, openExpResultModal, openStartExperimentModal,
     miscModal, closeMisc, openSuspectsModal, openFactorsModal, openReportModal,
     loadSuspects,
     hint, flash, setHint,
