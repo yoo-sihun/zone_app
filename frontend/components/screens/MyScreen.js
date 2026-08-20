@@ -38,8 +38,8 @@ export default function MyScreen() {
           <span className="menu-arrow">›</span>
         </button>
         <button className="menu-item" onClick={() => openReportModal()}>
-          <span className="menu-icon">📄</span>
-          <span className="menu-title">PDF 리포트 생성 및 다운로드</span>
+          <span className="menu-icon">📊</span>
+          <span className="menu-title">피부 분석 리포트 보기</span>
           <span className="menu-arrow">›</span>
         </button>
       </div>

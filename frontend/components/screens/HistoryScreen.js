@@ -45,7 +45,7 @@ export default function HistoryScreen() {
       </div>
 
       <div className="row">
-        <button className="btn ghost secondary-action" onClick={() => openReportModal()}>📄 PDF 종합 리포트 출력</button>
+        <button className="btn ghost secondary-action" onClick={() => openReportModal()}>📊 피부 분석 리포트 보기</button>
       </div>
 
       <div className="sechead"><h3>지난 성분 배제 실험</h3></div>
