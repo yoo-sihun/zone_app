@@ -146,7 +146,9 @@ export default function VanityScreen() {
           <div className="prods">
             {products.map((p) => (
               <div key={p.id} className={`prod ${p.locked ? "locked" : ""}`} style={{ padding: "14px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "18px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "12px" }}>
-                <div className="swatch" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--teal-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🧴</div>
+                <div className="swatch" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--teal-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", overflow: "hidden", flexShrink: 0 }}>
+                  {p.image ? <img src={p.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🧴"}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     {p.category && <span className="record-entry-zone" style={{ flexShrink: 0 }}>{p.category}</span>}

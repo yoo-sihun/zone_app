@@ -150,7 +150,11 @@ export default function ReportPanel() {
                       <div className="guide-detail-products">
                         {zoneRecos.map((p) => (
                           <div key={p.id} className="guide-detail-product-card">
-                            <span className="prod-icon">🧴</span>
+                            {p.image ? (
+                              <img src={p.image} alt="" style={{ width: 20, height: 20, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                            ) : (
+                              <span className="prod-icon">🧴</span>
+                            )}
                             <span className="prod-name">{p.name}{p.category ? ` (${p.category})` : ""}</span>
                           </div>
                         ))}

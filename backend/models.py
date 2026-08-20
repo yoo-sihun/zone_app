@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, JSON, Float, UniqueConstraint, func
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, JSON, Float, UniqueConstraint, func
 
 from .database import Base
 
@@ -86,6 +86,7 @@ class Product(Base):
     name = Column(String, nullable=False)
     ingredients = Column(JSON, nullable=False, default=list)  # list[str]
     category = Column(String, nullable=True)  # 자유 문자열(예: "세럼"/"크림"/"선크림") — enum 검증 없음, skin_condition과 같은 패턴
+    image = Column(Text, nullable=True)  # data URI(base64) 그대로 저장 — 별도 오브젝트 스토리지 없이 DB에 바로 넣음
 
 
 class DailyLog(Base):

@@ -18,6 +18,7 @@ class ProductIn(BaseModel):
     name: str
     ingredients: list[str]
     category: str | None = None
+    image: str | None = None  # data URI(base64) — 프론트에서 리사이즈해서 보냄
 
 
 class ProductOut(BaseModel):
@@ -25,6 +26,7 @@ class ProductOut(BaseModel):
     name: str
     ingredients: list[str]
     category: str | None = None
+    image: str | None = None
     locked: bool = False
     last_used: Date | None = None
 
@@ -37,6 +39,7 @@ class ProductCreateOut(BaseModel):
     name: str
     ingredients: list[str]
     category: str | None = None
+    image: str | None = None
     warnings: list[str] = []  # ingredients that match a saved suspect ingredient
 
 

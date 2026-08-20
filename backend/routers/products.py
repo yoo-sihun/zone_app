@@ -50,6 +50,7 @@ def list_products(profile_id: int = Depends(get_current_profile_id), db: Session
             "name": p.name,
             "ingredients": p.ingredients,
             "category": p.category,
+            "image": p.image,
             "locked": bool(locked_ing and locked_ing in p.ingredients),
             "last_used": last_used.get(p.id),
         }
@@ -94,6 +95,7 @@ def recommended_products(
             "name": p.name,
             "ingredients": p.ingredients,
             "category": p.category,
+            "image": p.image,
             "locked": bool(locked_ing and locked_ing in p.ingredients),
         }
         for p in remaining[:6]
@@ -104,7 +106,10 @@ def recommended_products(
 def create_product(
     data: ProductIn, profile_id: int = Depends(get_current_profile_id), db: Session = Depends(get_db)
 ):
-    product = Product(profile_id=profile_id, name=data.name, ingredients=data.ingredients, category=data.category)
+    product = Product(
+        profile_id=profile_id, name=data.name, ingredients=data.ingredients,
+        category=data.category, image=data.image,
+    )
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -115,7 +120,7 @@ def create_product(
     warnings = [ing for ing in product.ingredients if ing in suspects]
     return {
         "id": product.id, "name": product.name, "ingredients": product.ingredients,
-        "category": product.category, "warnings": warnings,
+        "category": product.category, "image": product.image, "warnings": warnings,
     }
 
 
@@ -132,6 +137,7 @@ def update_product(
     product.name = data.name
     product.ingredients = data.ingredients
     product.category = data.category
+    product.image = data.image
     db.commit()
     db.refresh(product)
 
@@ -141,7 +147,7 @@ def update_product(
     warnings = [ing for ing in product.ingredients if ing in suspects]
     return {
         "id": product.id, "name": product.name, "ingredients": product.ingredients,
-        "category": product.category, "warnings": warnings,
+        "category": product.category, "image": product.image, "warnings": warnings,
     }
 
 

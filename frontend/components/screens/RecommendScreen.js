@@ -100,6 +100,7 @@ export default function RecommendScreen() {
             <div key={p.id} className={`prod ${selectedProductIds.includes(p.id) ? "on" : ""} ${p.locked ? "locked" : ""}`} onClick={() => onProdClick(p)}>
               <div className={`prod-checkbox ${selectedProductIds.includes(p.id) ? "checked" : ""}`}>{selectedProductIds.includes(p.id) ? "✓" : ""}</div>
               <div className="swatch" />
+              <div className="prod-thumb">{p.image ? <img src={p.image} alt="" /> : "🧴"}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   {p.category && <span className="record-entry-zone" style={{ flexShrink: 0 }}>{p.category}</span>}
@@ -124,6 +125,7 @@ export default function RecommendScreen() {
             {catalogItems.map((item, i) => (
               <div key={i} className="prod">
                 <div className="swatch" />
+                <div className="prod-thumb">🧴</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     {item.category && <span className="record-entry-zone" style={{ flexShrink: 0 }}>{item.category}</span>}

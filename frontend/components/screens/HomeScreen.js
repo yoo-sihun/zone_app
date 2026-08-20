@@ -270,7 +270,11 @@ export default function HomeScreen() {
                 onClick={() => pickRecommendation(p.id)}
                 style={{ width: "100px", padding: "12px 8px", textAlign: "center", flexShrink: 0, borderRadius: "14px" }}
               >
-                <div style={{ fontSize: "28px", marginBottom: "6px" }}>{emoji}</div>
+                {p.image ? (
+                  <img src={p.image} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", margin: "0 auto 6px" }} />
+                ) : (
+                  <div style={{ fontSize: "28px", marginBottom: "6px" }}>{emoji}</div>
+                )}
                 <div className="reconame" style={{ fontSize: "11px", fontWeight: "800", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                 {p.category && <div style={{ fontSize: "9px", color: "var(--text-faint)", marginTop: "4px" }}>{p.category}</div>}
               </div>
